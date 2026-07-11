@@ -11,6 +11,7 @@ export const ENDPOINTS = {
     BASE: "/users",
     BY_ID: (id: string) => `/users/${id}`,
   },
+  USER_PROFILE: "/users/me",
   TENANTS: {
     BASE: "/tenants",
     BY_ID: (id: string) => `/tenants/${id}`,
