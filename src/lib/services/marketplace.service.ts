@@ -40,8 +40,8 @@ export interface JointVenture {
 
 export const marketplaceService = {
   getListings: () =>
-    apiClient.get<MarketplaceListing[]>(`${ENDPOINTS.MARKETPLACE.BASE}/properties`).then((r) => r.data),
+    apiClient.get<any>(`${ENDPOINTS.MARKETPLACE.BASE}/listings`).then((r) => r.data.data.listings || r.data.data),
     
   getJointVentures: () =>
-    apiClient.get<JointVenture[]>(`${ENDPOINTS.MARKETPLACE.BASE}/joint-ventures`).then((r) => r.data),
+    apiClient.get<any>(`${ENDPOINTS.MARKETPLACE.BASE}/joint-ventures`).then((r) => r.data.data.jointVentures || r.data.data),
 };

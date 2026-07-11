@@ -12,6 +12,7 @@ import { paymentTone } from "@/lib/data";
 import { CreditCard, Wallet, CheckCircle2, Clock, AlertTriangle, Smartphone } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { paymentService, Payment } from "@/lib/services/payment.service";
+import { tenantService } from "@/lib/services/tenant.service";
 
 export default function PaymentsPage() {
   const { user } = useAuth();
@@ -66,16 +67,25 @@ function TenantPayments() {
   const toast = useToast();
   const qc = useQueryClient();
   const [pay, setPay] = useState(false);
+  const { user } = useAuth();
 
-  const { data: tenantPayments = [], isLoading } = useQuery({
+  const { data: dashboard, isLoading: isDashboardLoading } = useQuery({
+    queryKey: ["tenant-dashboard"],
+    queryFn: tenantService.getDashboard,
+    enabled: !!user && user.role === "tenant",
+  });
+
+  const { data: tenantPayments = [], isLoading: isPaymentsLoading } = useQuery({
     queryKey: ["payments-tenant"],
     queryFn: paymentService.getMyPayments,
+    enabled: !!user && user.role === "tenant",
   });
 
   const payMutation = useMutation({
     mutationFn: (data: any) => paymentService.pay(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payments-tenant"] });
+      qc.invalidateQueries({ queryKey: ["tenant-dashboard"] });
       toast("Payment successful!");
       setPay(false);
     },
@@ -84,19 +94,54 @@ function TenantPayments() {
     }
   });
 
+  const isLoading = isDashboardLoading || isPaymentsLoading;
+  const upcomingRent = dashboard?.upcomingRent;
+  const formatAmount = (amount?: number, currency = "£") =>
+    amount ? `${currency}${amount.toLocaleString()}` : "N/A";
+
   return (
     <div className="animate-in">
       <PageTitle title="Payments" subtitle="Pay rent and view your history" />
+      
       <div className="overflow-hidden rounded-2xl p-6 text-white" style={{ background: "linear-gradient(120deg,#008577,#00574b)" }}>
-        <p className="text-sm text-white/80">Monthly Rent · Due 1st of each month</p>
-        <p className="mt-1 text-4xl font-extrabold">£1,850.00</p>
+        <p className="text-sm text-white/80">Monthly Rent · Due {upcomingRent?.dueDate ? new Date(upcomingRent.dueDate).toLocaleDateString("en-GB") : "N/A"}</p>
+        <p className="mt-1 text-4xl font-extrabold">{formatAmount(upcomingRent?.amount)}</p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button onClick={() => setPay(true)} className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-primary">Pay with Card</button>
-          <button onClick={() => toast("Payment successful with Apple Pay")} className="flex items-center gap-1.5 rounded-xl bg-black px-5 py-2.5 text-sm font-bold text-white"><Smartphone className="h-4 w-4" /> Apple Pay</button>
+          <button 
+            onClick={() => setPay(true)} 
+            disabled={!upcomingRent}
+            className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-primary disabled:opacity-50"
+          >
+            Pay with Card
+          </button>
+          <button 
+            onClick={() => toast("Apple Pay not configured", "error")} 
+            disabled={!upcomingRent}
+            className="flex items-center gap-1.5 rounded-xl bg-black px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          >
+            <Smartphone className="h-4 w-4" /> Apple Pay
+          </button>
         </div>
       </div>
-      <Card className="mt-4 flex items-center justify-between p-4"><div><p className="font-semibold">Auto-Pay</p><p className="text-xs text-text-muted">Currently disabled</p></div><Button size="sm" variant="secondary" onClick={() => toast("Auto-Pay settings saved")}>Set up</Button></Card>
-      <div className="mt-5 rounded-xl bg-warning/10 p-4"><p className="text-sm font-semibold text-warning">Upcoming: Rent Payment · Due in 5 days · £1,850.00</p></div>
+
+      <Card className="mt-4 flex items-center justify-between p-4">
+        <div>
+          <p className="font-semibold">Auto-Pay</p>
+          <p className="text-xs text-text-muted">{dashboard?.autoPayEnabled ? "Active" : "Currently disabled"}</p>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => toast("Auto-Pay feature coming soon")}>
+          {dashboard?.autoPayEnabled ? "Manage" : "Set up"}
+        </Button>
+      </Card>
+
+      {upcomingRent && (
+        <div className="mt-5 rounded-xl bg-warning/10 p-4">
+          <p className="text-sm font-semibold text-warning">
+            Upcoming: Rent Payment · Due {new Date(upcomingRent.dueDate).toLocaleDateString("en-GB")} · {formatAmount(upcomingRent.amount)}
+          </p>
+        </div>
+      )}
+
       <h3 className="mb-3 mt-6 font-bold">Payment History</h3>
       {isLoading ? (
         <Card className="p-8 text-center text-text-muted">Loading history...</Card>
@@ -105,14 +150,47 @@ function TenantPayments() {
       ) : (
         <Card className="divide-y divide-border">
           {tenantPayments.map((p: any) => (
-            <div key={p.id || p._id} className="flex items-center gap-3 p-4"><CheckCircle2 className="h-5 w-5 text-success" /><div className="flex-1"><p className="font-semibold">{p.property || "Rent"}</p><p className="text-xs text-text-muted">{new Date(p.date || Date.now()).toLocaleDateString("en-GB")}</p></div><span className="font-bold">{typeof p.amount === 'number' ? `£${p.amount}` : p.amount}</span><Badge tone="success">Paid</Badge></div>
+            <div key={p.id || p._id} className="flex items-center gap-3 p-4">
+              <CheckCircle2 className={`h-5 w-5 ${p.status === 'Paid' ? 'text-success' : 'text-warning'}`} />
+              <div className="flex-1">
+                <p className="font-semibold">{p.title || "Rent Payment"}</p>
+                <p className="text-xs text-text-muted">{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-GB") : "Pending"}</p>
+              </div>
+              <span className="font-bold">{formatAmount(p.amount, p.currency)}</span>
+              <Badge tone={paymentTone(p.status)}>{p.status}</Badge>
+            </div>
           ))}
         </Card>
       )}
-      <Modal open={pay} onClose={() => setPay(false)} title="Card Payment" subtitle="Amount Due £1,850.00" footer={<><Button variant="secondary" onClick={() => setPay(false)}>Cancel</Button><Button onClick={() => payMutation.mutate({ amount: 1850, paymentMethodId: "pm_card_visa" })} loading={payMutation.isPending}>Pay £1,850.00</Button></>}>
+
+      <Modal 
+        open={pay} 
+        onClose={() => setPay(false)} 
+        title="Card Payment" 
+        subtitle={`Amount Due ${formatAmount(upcomingRent?.amount)}`} 
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPay(false)}>Cancel</Button>
+            <Button 
+              onClick={() => payMutation.mutate({ 
+                paymentId: upcomingRent?.paymentId,
+                amount: upcomingRent?.amount, 
+                paymentMethodId: "pm_card_visa" 
+              })} 
+              loading={payMutation.isPending}
+            >
+              Pay {formatAmount(upcomingRent?.amount)}
+            </Button>
+          </>
+        }
+      >
         <div className="space-y-4">
           <Field label="Card Number"><Input placeholder="4242 4242 4242 4242" /></Field>
-          <div className="grid grid-cols-3 gap-3"><Field label="MM/YY"><Input placeholder="12/28" /></Field><Field label="CVC"><Input placeholder="123" /></Field><Field label="ZIP"><Input placeholder="SW1A" /></Field></div>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="MM/YY"><Input placeholder="12/28" /></Field>
+            <Field label="CVC"><Input placeholder="123" /></Field>
+            <Field label="ZIP"><Input placeholder="SW1A" /></Field>
+          </div>
           <p className="text-center text-xs text-text-faint">🔒 Secured by Stripe</p>
         </div>
       </Modal>

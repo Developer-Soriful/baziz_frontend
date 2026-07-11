@@ -20,8 +20,7 @@ export default function MessagesPage() {
   const [tab, setTab] = useState<"All" | "Tenants" | "Marketplace" | "Group">("All");
   const [q, setQ] = useState("");
   
-  // Use fallback chats if no data returned yet
-  const displayChats = chats.length > 0 ? chats : fallbackChats;
+  const displayChats = chats || [];
   
   const filtered = displayChats.filter((c: any) => {
     const mq = !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.preview.toLowerCase().includes(q.toLowerCase());

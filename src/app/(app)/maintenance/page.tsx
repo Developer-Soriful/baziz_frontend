@@ -60,10 +60,10 @@ export default function MaintenancePage() {
     if (!form.title.trim()) return toast("Enter a title", "error");
     createMutation.mutate({
       title: form.title,
-      property: form.property || "General",
+      description: form.description,
+      category: form.category,
       priority: form.priority,
       status: "Pending",
-      date: new Date().toISOString()
     });
   };
 

@@ -19,4 +19,20 @@ export const tenantService = {
 
   delete: (id: string) =>
     apiClient.delete(ENDPOINTS.TENANTS.BY_ID(id)).then((r) => r.data),
+
+  getMyLease: () =>
+    apiClient.get<any>(ENDPOINTS.TENANT_DASHBOARD.MY_LEASE)
+      .then(r => r.data.data)
+      .catch((e) => {
+        if (e.response?.status === 404) return null;
+        throw e;
+      }),
+
+  getDashboard: () =>
+    apiClient.get<any>(ENDPOINTS.TENANT_DASHBOARD.DASHBOARD)
+      .then(r => r.data.data)
+      .catch((e) => {
+        if (e.response?.status === 404) return null;
+        throw e;
+      }),
 };

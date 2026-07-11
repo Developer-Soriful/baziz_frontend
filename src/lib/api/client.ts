@@ -18,7 +18,7 @@ apiClient.interceptors.response.use(
     async (error) => {
         if (error.response?.status === 401) {
             clearAccessToken();
-            if (typeof window !== "undefined") {
+            if (typeof window !== "undefined" && window.location.pathname !== "/login") {
                 window.location.href = "/login";
             }
         }

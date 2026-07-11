@@ -6,6 +6,8 @@ import { useAuth } from "@/lib/auth";
 import { Card, Badge, Progress } from "@/components/ui/primitives";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardService } from "@/lib/services/dashboard.service";
+import { tenantService } from "@/lib/services/tenant.service";
+import { maintenanceService } from "@/lib/services/maintenance.service";
 import { RevenueChart } from "@/components/charts";
 import { MapPanel } from "@/components/map-panel";
 import {
@@ -266,8 +268,27 @@ function LandlordHome() {
 }
 
 function TenantHome() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const router = useRouter();
+
+  const { data: myLease, isLoading: isLeaseLoading } = useQuery({
+    queryKey: ["tenant-lease"],
+    queryFn: tenantService.getMyLease,
+    enabled: !!user && user.role === "tenant",
+  });
+
+  const { data: dashboard, isLoading: isDashboardLoading } = useQuery({
+    queryKey: ["tenant-dashboard"],
+    queryFn: tenantService.getDashboard,
+    enabled: !!user && user.role === "tenant",
+  });
+
+  const { data: requests, isLoading: isMaintenanceLoading } = useQuery({
+    queryKey: ["maintenance-requests"],
+    queryFn: maintenanceService.getAll,
+    enabled: !!user && user.role === "tenant",
+  });
+
   const quick = [
     {
       label: "Report Issue",
@@ -296,6 +317,12 @@ function TenantHome() {
       color: "#ff3b30",
     },
   ];
+
+  const formatAmount = (amount?: number, currency = "£") =>
+    amount ? `${currency}${amount.toLocaleString()}` : "N/A";
+
+  const latestMaintenance = requests?.[0];
+
   return (
     <div className="animate-in space-y-5">
       <div className="flex items-center justify-between">
@@ -323,12 +350,16 @@ function TenantHome() {
             <span className="font-bold">Your Home</span>
           </div>
           <Badge tone="neutral" className="!bg-white/20 !text-white">
-            {tenantHome.unit}
+            {myLease?.unit?.unitNumber || "No Unit"}
           </Badge>
         </div>
-        <p className="mt-3 text-sm text-white/80">{tenantHome.address}</p>
+        <p className="mt-3 text-sm text-white/80">
+          {myLease?.property?.propertyName || "Loading..."}
+        </p>
         <p className="mt-4 text-xs text-white/70">Monthly Rent</p>
-        <p className="text-3xl font-extrabold">{tenantHome.rent}</p>
+        <p className="text-3xl font-extrabold">
+          {formatAmount(myLease?.rentAmount, myLease?.currency)}
+        </p>
         <p className="text-xs text-white/70">Due on 1st of every month</p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Link
@@ -338,10 +369,11 @@ function TenantHome() {
             Pay Rent
           </Link>
           <span className="flex items-center gap-1.5 text-xs text-white/80">
-            <Calendar className="h-4 w-4" /> Lease ends: {tenantHome.leaseEnds}
+            <Calendar className="h-4 w-4" /> Lease ends:{" "}
+            {myLease?.leaseEnd ? new Date(myLease.leaseEnd).toLocaleDateString("en-GB") : "N/A"}
           </span>
           <span className="flex items-center gap-1.5 text-xs text-white/80">
-            <CheckCircle2 className="h-4 w-4" /> Status: Active
+            <CheckCircle2 className="h-4 w-4" /> Status: {myLease?.status === 'active' ? 'Active' : myLease?.status || 'N/A'}
           </span>
         </div>
       </div>
@@ -366,26 +398,28 @@ function TenantHome() {
       </div>
 
       {/* Upcoming maintenance */}
-      <Card className="p-5">
-        <h3 className="mb-3 font-bold">Upcoming Maintenance</h3>
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-warning/12 text-warning">
-            <Wrench className="h-5 w-5" />
-          </span>
-          <div className="flex-1">
-            <p className="text-sm font-bold">HVAC Maintenance</p>
-            <p className="text-xs text-text-muted">
-              January 25th, 9:00 AM – 12:00 PM
-            </p>
+      {latestMaintenance && (
+        <Card className="p-5">
+          <h3 className="mb-3 font-bold">Upcoming Maintenance</h3>
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-warning/12 text-warning">
+              <Wrench className="h-5 w-5" />
+            </span>
+            <div className="flex-1">
+              <p className="text-sm font-bold">{latestMaintenance.title || latestMaintenance.issueDescription || "Maintenance Request"}</p>
+              <p className="text-xs text-text-muted">
+                Status: {latestMaintenance.status}
+              </p>
+            </div>
+            <Link
+              href="/maintenance"
+              className="rounded-lg border border-border-strong px-3 py-1.5 text-xs font-semibold hover:border-primary"
+            >
+              View
+            </Link>
           </div>
-          <Link
-            href="/maintenance"
-            className="rounded-lg border border-border-strong px-3 py-1.5 text-xs font-semibold hover:border-primary"
-          >
-            View
-          </Link>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* Recent payments */}
       <Card className="p-5">
@@ -396,21 +430,23 @@ function TenantHome() {
           </Link>
         </div>
         <div className="divide-y divide-border">
-          {tenantRecentPayments.map((p) => (
-            <div key={p.label} className="flex items-center gap-3 py-3">
+          {dashboard?.recentPayments?.length ? dashboard.recentPayments.map((p: any) => (
+            <div key={p.id} className="flex items-center gap-3 py-3">
               <CheckCircle2 className="h-5 w-5 text-success" />
               <div className="flex-1">
-                <p className="text-sm font-semibold">{p.label}</p>
-                <p className="text-xs text-text-muted">{p.date}</p>
+                <p className="text-sm font-semibold">{p.title || "Rent Payment"}</p>
+                <p className="text-xs text-text-muted">{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-GB") : ""}</p>
               </div>
-              <span className="text-sm font-bold">{p.amount}</span>
+              <span className="text-sm font-bold">{formatAmount(p.amount, p.currency)}</span>
               <Badge tone="success">Paid</Badge>
             </div>
-          ))}
+          )) : (
+            <p className="py-4 text-center text-sm text-text-muted">No recent payments found.</p>
+          )}
         </div>
       </Card>
 
-      {/* Logout — matches the Flutter tenant home */}
+      {/* Logout */}
       <button
         onClick={() => {
           logout();
@@ -423,3 +459,4 @@ function TenantHome() {
     </div>
   );
 }
+

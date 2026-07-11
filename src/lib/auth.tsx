@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
   ): Promise<string | null> => {
     try {
-      const res = await authService.login({ email, password });
+      const res: any = await authService.login({ email, password });
       if (res.accessToken) {
         setAccessToken(res.accessToken);
         await qc.invalidateQueries({ queryKey: ["me"] });
@@ -77,13 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: Role,
   ): Promise<string | null> => {
     try {
-      const res = await authService.signup({
+      const res: any = await authService.signup({
         email,
         password,
         firstName: name,
         confirmPassword: password,
         role,
-        termsAccepted: true
+        termsAccepted: true,
       });
       if (res.accessToken) {
         setAccessToken(res.accessToken);

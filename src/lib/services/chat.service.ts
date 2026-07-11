@@ -23,10 +23,13 @@ export interface ChatPreview {
 
 export const chatService = {
   getChats: () =>
-    apiClient.get<ChatPreview[]>(ENDPOINTS.CHAT.ROOMS).then((r) => r.data),
+    apiClient.get<any>(ENDPOINTS.CHAT.ROOMS).then((r) => {
+      const data = r.data?.data;
+      return (data?.conversations || data?.rooms || (Array.isArray(data) ? data : [])) as ChatPreview[];
+    }),
     
   getMessages: (chatId: string) =>
-    apiClient.get<ChatMessage[]>(ENDPOINTS.CHAT.MESSAGES(chatId)).then((r) => r.data),
+    apiClient.get<any>(ENDPOINTS.CHAT.MESSAGES(chatId)).then((r) => (r.data.data.messages || r.data.data) as ChatMessage[]),
     
   sendMessage: (chatId: string, content: string) =>
     apiClient.post<ChatMessage>(ENDPOINTS.CHAT.MESSAGES(chatId), { content }).then((r) => r.data),

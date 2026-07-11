@@ -18,7 +18,12 @@ export const paymentService = {
 
   // For tenants
   getMyPayments: () =>
-    apiClient.get<Payment[]>(ENDPOINTS.RENT_PAYMENTS.TENANT).then((r) => r.data),
+    apiClient.get<any>(ENDPOINTS.RENT_PAYMENTS.TENANT)
+      .then((r) => r.data.data.payments)
+      .catch((e) => {
+        if (e.response?.status === 404) return [];
+        throw e;
+      }),
 
   // Create payment intent / charge
   pay: (data: { amount: number; paymentMethodId: string }) =>

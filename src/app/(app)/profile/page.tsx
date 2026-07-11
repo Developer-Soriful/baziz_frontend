@@ -6,13 +6,22 @@ import { Card, Button, Avatar, Toggle } from "@/components/ui/primitives";
 import { Field, Input } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth";
-import { colorFromString } from "@/lib/utils";
+import { colorFromString, gbp } from "@/lib/utils";
 import { User, ShieldAlert, Calendar, Bell } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { tenantService } from "@/lib/services/tenant.service";
 
 export default function ProfilePage() {
   const toast = useToast();
   const { user } = useAuth();
   const isTenant = user?.role === "tenant";
+  
+  const { data: myLease, isLoading: isLoadingLease } = useQuery({
+    queryKey: ["tenant-lease"],
+    queryFn: tenantService.getMyLease,
+    enabled: isTenant,
+  });
+
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState("(555) 123-4567");
@@ -46,10 +55,24 @@ export default function ProfilePage() {
         </Card>
         <Card className="mt-4 p-6">
           <h3 className="mb-3 flex items-center gap-2 font-bold"><Calendar className="h-4 w-4 text-primary" /> Lease Information</h3>
-          <div className="divide-y divide-border text-sm">
-            {[["Unit", "2B"], ["Lease Start", "January 1, 2024"], ["Lease End", "December 31, 2024"], ["Monthly Rent", "£1,850"], ["Security Deposit", "£2,000"]].map(([k, v]) => (<div key={k} className="flex justify-between py-2.5"><span className="text-text-muted">{k}</span><span className="font-semibold">{v}</span></div>))}
-          </div>
-          <div className="mt-4 rounded-xl bg-primary/8 p-4 text-sm"><p className="font-semibold text-primary">Lease Renewal Notice</p><p className="mt-1 text-text-muted">Your lease expires in 11 months. We&apos;ll notify you 60 days before renewal.</p></div>
+          {isLoadingLease ? (
+             <div className="p-4 text-center text-text-muted">Loading lease data...</div>
+          ) : myLease ? (
+             <>
+               <div className="divide-y divide-border text-sm">
+                 {[
+                   ["Unit", myLease.unit?.unitNumber || "N/A"], 
+                   ["Lease Start", new Date(myLease.lease?.startDate).toLocaleDateString("en-GB")], 
+                   ["Lease End", new Date(myLease.lease?.endDate).toLocaleDateString("en-GB")], 
+                   ["Monthly Rent", gbp(myLease.lease?.rentAmount)], 
+                   ["Security Deposit", gbp(myLease.lease?.depositAmount)]
+                 ].map(([k, v]) => (<div key={k} className="flex justify-between py-2.5"><span className="text-text-muted">{k}</span><span className="font-semibold">{v}</span></div>))}
+               </div>
+               <div className="mt-4 rounded-xl bg-primary/8 p-4 text-sm"><p className="font-semibold text-primary">Lease Renewal Notice</p><p className="mt-1 text-text-muted">Your lease is currently <span className="font-bold">{myLease.lease?.status}</span>.</p></div>
+             </>
+          ) : (
+            <div className="p-4 text-center text-text-muted">No active lease found.</div>
+          )}
         </Card>
       </>)}
 

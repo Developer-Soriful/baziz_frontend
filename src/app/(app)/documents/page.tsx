@@ -10,6 +10,8 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth";
 import { documents as seed, type DocItem } from "@/lib/data";
 import { FileText, Download, Users, Lock, Plus, Eye } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { documentService } from "@/lib/services/document.service";
 
 export default function DocumentsPage() {
   const { user } = useAuth();
@@ -64,17 +66,57 @@ function LandlordDocs() {
 
 function TenantDocs() {
   const toast = useToast();
+  
+  const { data: documents = [], isLoading } = useQuery({
+    queryKey: ["tenant-documents"],
+    queryFn: documentService.getMyDocuments,
+  });
+
+  const mainLease = documents.find(d => d.documentType === 'Lease' || d.documentName.toLowerCase().includes('lease'));
+  const otherDocs = documents.filter(d => d._id !== mainLease?._id);
+
+  if (isLoading) {
+    return <div className="animate-in mx-auto max-w-2xl text-center text-text-muted mt-10">Loading documents...</div>;
+  }
+
+  if (!mainLease && otherDocs.length === 0) {
+    return (
+      <div className="animate-in mx-auto max-w-2xl">
+        <PageTitle title="Documents" subtitle="Contract Agreement" />
+        <Card className="mt-4"><EmptyState icon={FileText} title="No Documents" message="Your landlord hasn't shared any documents with you yet." /></Card>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-in mx-auto max-w-2xl">
       <PageTitle title="Documents" subtitle="Contract Agreement" />
-      <div className="mb-4 flex items-center gap-3 rounded-xl bg-primary/8 p-4"><Users className="h-5 w-5 text-primary" /><p className="text-sm text-text-muted">This document is shared between you and your landlord.</p></div>
-      <Card className="p-5">
-        <div className="flex items-center gap-3"><span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText className="h-6 w-6" /></span><div><p className="font-bold">Lease Agreement - Unit 4B</p><p className="text-xs text-text-muted">1.1 MB · 5 Jan 2024</p></div></div>
-        <div className="mt-4 divide-y divide-border">
-          {[["Property", "Sunset Apartments, Unit 4B"], ["Tenant", "Alice Johnson"], ["Landlord", "Metro Hospitality Ltd."], ["Lease period", "1 Jan 2024 – 31 Dec 2024"]].map(([k, v]) => (<div key={k} className="flex justify-between py-2.5 text-sm"><span className="text-text-muted">{k}</span><span className="font-semibold">{v}</span></div>))}
-        </div>
-        <Button className="mt-4 w-full" onClick={() => toast("Opening agreement...")}><Eye className="h-4 w-4" /> View Agreement</Button>
-      </Card>
+      <div className="mb-4 flex items-center gap-3 rounded-xl bg-primary/8 p-4"><Users className="h-5 w-5 text-primary" /><p className="text-sm text-text-muted">These documents are shared between you and your landlord.</p></div>
+      
+      {mainLease && (
+        <Card className="p-5 mb-5">
+          <div className="flex items-center gap-3"><span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText className="h-6 w-6" /></span><div><p className="font-bold">{mainLease.documentName}</p><p className="text-xs text-text-muted">{(mainLease.fileSize / 1024 / 1024).toFixed(2)} MB · {new Date(mainLease.createdAt).toLocaleDateString("en-GB")}</p></div></div>
+          <Button className="mt-4 w-full" onClick={() => window.open(mainLease.documentUrl, "_blank")}><Eye className="h-4 w-4" /> View Agreement</Button>
+        </Card>
+      )}
+
+      {otherDocs.length > 0 && (
+        <>
+          <h3 className="mb-3 font-bold">Other Documents ({otherDocs.length})</h3>
+          <Card className="divide-y divide-border">
+            {otherDocs.map(d => (
+              <div key={d._id} className="flex items-center gap-3 p-4">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText className="h-5 w-5" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{d.documentName}</p>
+                  <p className="text-xs text-text-muted">{d.documentType} · {(d.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+                <button onClick={() => window.open(d.documentUrl, "_blank")} className="rounded-lg p-2 text-text-faint hover:bg-surface-2 hover:text-primary"><Download className="h-4 w-4" /></button>
+              </div>
+            ))}
+          </Card>
+        </>
+      )}
       <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-text-faint"><Lock className="h-3.5 w-3.5" /> Read-only · Contact your landlord for changes</p>
     </div>
   );
