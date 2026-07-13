@@ -80,4 +80,13 @@ export const ENDPOINTS = {
     BASE: "/payments",
     BY_ID: (id: string) => `/payments/${id}`,
   },
+  CALCULATORS: {
+    BASE: "/calculators",
+    BY_ID: (id: string) => `/calculators/${id}`,
+    SHARE: (id: string) => `/calculators/${id}/share`,
+    SHARED: (token: string) => `/calculators/shared/${token}`,
+  },
+  STAMP_DUTY: {
+    ACTIVE_RATES: "/stamp-duty/rates/active",
+  },
 };
