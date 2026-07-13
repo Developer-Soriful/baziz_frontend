@@ -16,20 +16,20 @@ export interface MaintenanceRequest {
 }
 
 export const maintenanceService = {
-  getAll: () =>
-    apiClient.get<any>(ENDPOINTS.MAINTENANCE.BASE).then((r) => r.data.data.requests || r.data.data),
+  getAll: (params?: any) =>
+    apiClient.get<any>(ENDPOINTS.MAINTENANCE.BASE, { params }).then((r) => r.data.data.requests || r.data.data),
 
   getById: (id: string) =>
-    apiClient.get<any>(ENDPOINTS.MAINTENANCE.BY_ID(id)).then((r) => r.data.data.request || r.data.data),
+    apiClient.get<any>(ENDPOINTS.MAINTENANCE.BY_ID(id)).then((r) => r.data.data.maintenanceRequest || r.data.data),
 
-  create: (data: Partial<MaintenanceRequest>) =>
+  create: (data: any) =>
     apiClient
       .post<any>(ENDPOINTS.MAINTENANCE.BASE, data)
       .then((r) => r.data.data),
 
-  update: (id: string, data: Partial<MaintenanceRequest>) =>
+  updateStatus: (id: string, status: string) =>
     apiClient
-      .put<any>(ENDPOINTS.MAINTENANCE.BY_ID(id), data)
+      .patch<any>(`${ENDPOINTS.MAINTENANCE.BY_ID(id)}/status`, { status })
       .then((r) => r.data.data),
 
   delete: (id: string) =>

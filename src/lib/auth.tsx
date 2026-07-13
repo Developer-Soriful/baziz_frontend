@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res: any = await authService.login({ email, password });
       if (res.session?.accessToken) {
         setAccessToken(res.session.accessToken);
-        await qc.invalidateQueries({ queryKey: ["me"] });
+        qc.setQueryData(["me"], res.user);
         return null; // success
       }
       return "Login failed: No token received.";
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (res.session?.accessToken) {
         setAccessToken(res.session.accessToken);
-        await qc.invalidateQueries({ queryKey: ["me"] });
+        qc.setQueryData(["me"], res.user);
         return null;
       }
       return "Signup failed: No token received.";

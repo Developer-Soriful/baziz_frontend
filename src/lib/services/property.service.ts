@@ -4,20 +4,20 @@ import { Property } from "../data";
 
 export const propertyService = {
   getAll: () =>
-    apiClient.get<Property[]>(ENDPOINTS.PROPERTIES.BASE).then((r) => r.data),
+    apiClient.get<any>(ENDPOINTS.PROPERTIES.BASE).then((r) => r.data.data || r.data),
 
   getById: (id: string) =>
-    apiClient.get<Property>(ENDPOINTS.PROPERTIES.BY_ID(id)).then((r) => r.data),
+    apiClient.get<any>(ENDPOINTS.PROPERTIES.BY_ID(id)).then((r) => r.data.data || r.data),
 
   create: (data: Partial<Property>) =>
     apiClient
-      .post<Property>(ENDPOINTS.PROPERTIES.BASE, data)
-      .then((r) => r.data),
+      .post<any>(ENDPOINTS.PROPERTIES.BASE, data)
+      .then((r) => r.data.data || r.data),
 
   update: (id: string, data: Partial<Property>) =>
     apiClient
-      .put<Property>(ENDPOINTS.PROPERTIES.BY_ID(id), data)
-      .then((r) => r.data),
+      .put<any>(ENDPOINTS.PROPERTIES.BY_ID(id), data)
+      .then((r) => r.data.data || r.data),
 
   delete: (id: string) =>
     apiClient.delete(ENDPOINTS.PROPERTIES.BY_ID(id)).then((r) => r.data),

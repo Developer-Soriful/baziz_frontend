@@ -2,7 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "./primitives";
 
 export function Modal({
@@ -33,12 +34,15 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!open || !mounted) return null;
 
   const widths = { sm: "max-w-md", md: "max-w-xl", lg: "max-w-3xl" };
 
-  return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
@@ -74,7 +78,8 @@ export function Modal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -86,6 +91,7 @@ export function ConfirmDialog({
   message,
   confirmLabel = "Confirm",
   danger,
+  loading,
 }: {
   open: boolean;
   onClose: () => void;
@@ -94,6 +100,7 @@ export function ConfirmDialog({
   message: string;
   confirmLabel?: string;
   danger?: boolean;
+  loading?: boolean;
 }) {
   return (
     <Modal
@@ -103,14 +110,16 @@ export function ConfirmDialog({
       size="sm"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
           <Button
             variant={danger ? "danger" : "primary"}
+            loading={loading}
             onClick={() => {
               onConfirm();
-              onClose();
+              // Prevent closing immediately if we rely on mutations to close on success
+              if (!loading) onClose();
             }}
           >
             {confirmLabel}

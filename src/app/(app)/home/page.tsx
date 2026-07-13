@@ -328,13 +328,6 @@ function TenantHome() {
           <p className="text-sm text-text-muted">Good morning,</p>
           <h1 className="text-2xl font-extrabold">Welcome home 🏡</h1>
         </div>
-        <Link
-          href="/notifications"
-          className="relative rounded-xl border border-border bg-surface p-3"
-        >
-          <Bell className="h-5 w-5 text-text-muted" />
-          <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-danger" />
-        </Link>
       </div>
 
       {/* Your Home hero */}
