@@ -8,8 +8,10 @@ export const authService = {
             const data = r.data.data;
             return {
                 user: { ...data.user, name: data.user.firstName },
-                accessToken: data.session.accessToken,
-                refreshToken: data.session.refreshToken
+                session: {
+                    accessToken: data.session.accessToken,
+                    refreshToken: data.session.refreshToken
+                }
             } as AuthResponse;
         }),
 
@@ -18,10 +20,18 @@ export const authService = {
             const data = r.data.data;
             return {
                 user: { ...data.user, name: data.user.firstName },
-                accessToken: data.session.accessToken,
-                refreshToken: data.session.refreshToken
+                session: {
+                    accessToken: data.session.accessToken,
+                    refreshToken: data.session.refreshToken
+                }
             } as AuthResponse;
         }),
+
+    verifyEmail: (payload: { email: string; otp: string }) =>
+        apiClient.post<any>(ENDPOINTS.AUTH.VERIFY_EMAIL, payload).then(r => r.data),
+
+    resendOtp: (payload: { email: string }) =>
+        apiClient.post<any>(ENDPOINTS.AUTH.ME.replace("/me", "/resend-otp"), payload).then(r => r.data),
 
     me: () =>
         apiClient.get<any>(ENDPOINTS.AUTH.ME).then(r => {

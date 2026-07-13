@@ -18,8 +18,6 @@ import {
   propertyMatches,
   recentPayments,
   propertyPins,
-  tenantHome,
-  tenantRecentPayments,
 } from "@/lib/data";
 import {
   Bell,
@@ -319,7 +317,7 @@ function TenantHome() {
   ];
 
   const formatAmount = (amount?: number, currency = "£") =>
-    amount ? `${currency}${amount.toLocaleString()}` : "N/A";
+    amount ? `${currency}${amount.toLocaleString()}` : "0";
 
   const latestMaintenance = requests?.[0];
 
@@ -370,10 +368,13 @@ function TenantHome() {
           </Link>
           <span className="flex items-center gap-1.5 text-xs text-white/80">
             <Calendar className="h-4 w-4" /> Lease ends:{" "}
-            {myLease?.leaseEnd ? new Date(myLease.leaseEnd).toLocaleDateString("en-GB") : "N/A"}
+            {myLease?.leaseEnd
+              ? new Date(myLease.leaseEnd).toLocaleDateString("en-GB")
+              : "0"}
           </span>
           <span className="flex items-center gap-1.5 text-xs text-white/80">
-            <CheckCircle2 className="h-4 w-4" /> Status: {myLease?.status === 'active' ? 'Active' : myLease?.status || 'N/A'}
+            <CheckCircle2 className="h-4 w-4" /> Status:{" "}
+            {myLease?.status === "active" ? "Active" : myLease?.status || "0"}
           </span>
         </div>
       </div>
@@ -406,7 +407,11 @@ function TenantHome() {
               <Wrench className="h-5 w-5" />
             </span>
             <div className="flex-1">
-              <p className="text-sm font-bold">{latestMaintenance.title || latestMaintenance.issueDescription || "Maintenance Request"}</p>
+              <p className="text-sm font-bold">
+                {latestMaintenance.title ||
+                  latestMaintenance.issueDescription ||
+                  "Maintenance Request"}
+              </p>
               <p className="text-xs text-text-muted">
                 Status: {latestMaintenance.status}
               </p>
@@ -430,18 +435,30 @@ function TenantHome() {
           </Link>
         </div>
         <div className="divide-y divide-border">
-          {dashboard?.recentPayments?.length ? dashboard.recentPayments.map((p: any) => (
-            <div key={p.id} className="flex items-center gap-3 py-3">
-              <CheckCircle2 className="h-5 w-5 text-success" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold">{p.title || "Rent Payment"}</p>
-                <p className="text-xs text-text-muted">{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-GB") : ""}</p>
+          {dashboard?.recentPayments?.length ? (
+            dashboard.recentPayments.map((p: any) => (
+              <div key={p.id} className="flex items-center gap-3 py-3">
+                <CheckCircle2 className="h-5 w-5 text-success" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">
+                    {p.title || "Rent Payment"}
+                  </p>
+                  <p className="text-xs text-text-muted">
+                    {p.paidAt
+                      ? new Date(p.paidAt).toLocaleDateString("en-GB")
+                      : ""}
+                  </p>
+                </div>
+                <span className="text-sm font-bold">
+                  {formatAmount(p.amount, p.currency)}
+                </span>
+                <Badge tone="success">Paid</Badge>
               </div>
-              <span className="text-sm font-bold">{formatAmount(p.amount, p.currency)}</span>
-              <Badge tone="success">Paid</Badge>
-            </div>
-          )) : (
-            <p className="py-4 text-center text-sm text-text-muted">No recent payments found.</p>
+            ))
+          ) : (
+            <p className="py-4 text-center text-sm text-text-muted">
+              No recent payments found.
+            </p>
           )}
         </div>
       </Card>
@@ -459,4 +476,3 @@ function TenantHome() {
     </div>
   );
 }
-

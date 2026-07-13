@@ -23,11 +23,14 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     if (!name.trim()) return setError("Please enter your name.");
-    if (password.length < 6) return setError("Password must be at least 6 characters.");
+    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordPattern.test(password)) {
+      return setError("Password must be at least 8 characters with uppercase, lowercase, number, and special character.");
+    }
     setLoading(true);
     const err = await signup(name, email, password, role);
     if (err) { setError(err); setLoading(false); }
-    else router.push("/home");
+    else router.push(`/verify-email?email=${encodeURIComponent(email)}`);
   };
 
   return (
@@ -54,7 +57,7 @@ export default function SignupPage() {
         </div>
         <Field label="Full name"><Input value={name} onChange={(e) => setName(e.target.value)} icon={<User className="h-4 w-4" />} placeholder="Jane Doe" required /></Field>
         <Field label="Email address"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail className="h-4 w-4" />} placeholder="you@example.com" required /></Field>
-        <Field label="Password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock className="h-4 w-4" />} placeholder="At least 6 characters" required /></Field>
+        <Field label="Password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock className="h-4 w-4" />} placeholder="Strong password required" required /></Field>
         {error && <div className="rounded-xl bg-danger/10 px-3.5 py-2.5 text-sm font-medium text-danger">{error}</div>}
         <Button type="submit" size="lg" className="w-full" loading={loading}>Create account <ArrowRight className="h-4 w-4" /></Button>
       </form>

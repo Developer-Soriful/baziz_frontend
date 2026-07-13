@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const [role, setRole] = useState<Role>("landlord");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -25,6 +25,10 @@ export default function LoginPage() {
     setLoading(true);
     const err = await login(email, password);
     if (err) {
+      if (err.includes("Email not verified")) {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}&resent=true`);
+        return;
+      }
       setError(err);
       setLoading(false);
     } else router.push("/home");
@@ -44,32 +48,7 @@ export default function LoginPage() {
       </p>
 
       <form onSubmit={submit} className="mt-8 space-y-4">
-        <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl border border-border bg-surface p-1">
-          <button
-            type="button"
-            onClick={() => setRole("landlord")}
-            className={cn(
-              "rounded-lg py-2 text-sm font-medium transition",
-              role === "landlord"
-                ? "bg-primary text-white shadow"
-                : "text-text-muted hover:text-text hover:bg-surface-hover",
-            )}
-          >
-            Landlord
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole("tenant")}
-            className={cn(
-              "rounded-lg py-2 text-sm font-medium transition",
-              role === "tenant"
-                ? "bg-primary text-white shadow"
-                : "text-text-muted hover:text-text hover:bg-surface-hover",
-            )}
-          >
-            Tenant
-          </button>
-        </div>
+
 
         <Field label="Email address">
           <Input

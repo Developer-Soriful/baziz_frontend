@@ -46,7 +46,7 @@ export const ENDPOINTS = {
     LANDLORD: "/rent-payments",
   },
   DASHBOARD: {
-    BASE: "/landlord",
+    BASE: "/landlord/portfolio-overview",
   },
   TENANT_DASHBOARD: {
     MY_LEASE: "/tenants/my-lease",

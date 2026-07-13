@@ -6,10 +6,13 @@ export interface MaintenanceRequest {
   id?: string;
   _id?: string;
   title: string;
-  property: string;
-  status: "Pending" | "In Progress" | "Resolved";
-  date: string;
+  description?: string;
+  category?: string;
+  property?: string;
+  status: "open" | "in_progress" | "resolved" | "closed" | "Pending" | "In Progress" | "Resolved";
+  date?: string;
   priority: string;
+  cost?: number;
 }
 
 export const maintenanceService = {

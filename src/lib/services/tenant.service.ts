@@ -22,7 +22,13 @@ export const tenantService = {
 
   getMyLease: () =>
     apiClient.get<any>(ENDPOINTS.TENANT_DASHBOARD.MY_LEASE)
-      .then(r => r.data.data)
+      .then(r => {
+        const data = r.data.data;
+        if (data && data.leaseEndDate) {
+          data.leaseEnd = data.leaseEndDate;
+        }
+        return data;
+      })
       .catch((e) => {
         if (e.response?.status === 404) return null;
         throw e;
