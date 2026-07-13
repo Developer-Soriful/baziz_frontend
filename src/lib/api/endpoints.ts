@@ -19,7 +19,10 @@ export const ENDPOINTS = {
   PROPERTIES: {
     BASE: "/properties",
     BY_ID: (id: string) => `/properties/${id}`,
-    DOCUMENTS: (id: string) => `/properties/${id}/documents`,
+  },
+  DOCUMENTS: {
+    BASE: "/documents",
+    BY_ID: (id: string) => `/documents/${id}`,
   },
   TASKS: {
     BASE: "/tasks",

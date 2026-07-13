@@ -19,41 +19,66 @@ export default function DocumentsPage() {
   return <LandlordDocs />;
 }
 
+import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
+
 function LandlordDocs() {
   const toast = useToast();
-  const [list, setList] = useState<DocItem[]>(() => [...seed]);
+  const qc = useQueryClient();
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"all" | "Property" | "Tenant" | "Other">(
-    "all",
-  );
+  const [filter, setFilter] = useState<"all" | "Property" | "Tenant" | "Other">("all");
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ name: "", type: "Leases" });
+  const [file, setFile] = useState<File | null>(null);
 
-  const match = (d: DocItem) =>
+  const { data: documents = [], isLoading } = useQuery({
+    queryKey: ["landlord-documents"],
+    queryFn: documentService.getLandlordDocuments,
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: documentService.uploadLandlordDocument,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["landlord-documents"] });
+      toast("Document uploaded", "success");
+      setModal(false);
+      setForm({ name: "", type: "Leases" });
+      setFile(null);
+    },
+    onError: (err: any) => toast(err?.response?.data?.message || "Failed to upload", "error"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: documentService.deleteLandlordDocument,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["landlord-documents"] });
+      toast("Document deleted", "success");
+    },
+    onError: () => toast("Failed to delete document", "error"),
+  });
+
+  const match = (d: any) =>
     filter === "all" ||
     (filter === "Property"
-      ? ["Mortgage", "Leases"].includes(d.type)
+      ? ["Mortgage", "Leases"].includes(d.documentType)
       : filter === "Tenant"
-        ? d.type === "Leases"
-        : ["Other", "Insurance", "Inspections"].includes(d.type));
-  const filtered = list.filter(
-    (d) => match(d) && (!q || d.name.toLowerCase().includes(q.toLowerCase())),
+        ? d.documentType === "Leases"
+        : ["Other", "Insurance", "Inspections"].includes(d.documentType));
+
+  const filtered = documents.filter(
+    (d: any) => match(d) && (!q || d.title.toLowerCase().includes(q.toLowerCase()))
   );
 
   const save = () => {
     if (!form.name.trim()) return toast("Enter a name", "error");
-    setList((l) => [
-      {
-        id: `doc_${Date.now()}`,
-        name: form.name,
-        type: form.type,
-        size: "1.0 MB",
-        date: "Just now",
-      },
-      ...l,
-    ]);
-    toast("Document uploaded");
-    setModal(false);
+    if (!file) return toast("Select a file", "error");
+
+    const formData = new FormData();
+    formData.append("title", form.name);
+    formData.append("documentType", form.type);
+    formData.append("document", file);
+
+    uploadMutation.mutate(formData);
   };
 
   return (
@@ -85,41 +110,54 @@ function LandlordDocs() {
           ]}
         />
       </div>
-      {filtered.length === 0 ? (
+      
+      {isLoading ? (
+        <div className="text-center text-text-muted mt-10">Loading documents...</div>
+      ) : filtered.length === 0 ? (
         <Card>
           <EmptyState icon={FileText} title="No documents found" />
         </Card>
       ) : (
         <Card className="divide-y divide-border">
-          {filtered.map((d) => (
-            <div key={d.id} className="flex items-center gap-3 p-4">
+          {filtered.map((d: any) => (
+            <div key={d._id} className="flex items-center gap-3 p-4">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <FileText className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="truncate font-semibold">{d.name}</p>
-                  {d.shared && (
+                  <p className="truncate font-semibold">{d.title}</p>
+                  {d.propertyId && (
                     <Badge tone="primary">
-                      <Users className="mr-1 h-3 w-3" />
-                      Shared
+                      {d.propertyId.propertyName}
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-text-muted">
-                  {d.type} · {d.size} · Uploaded on {d.date}
+                  {d.documentType} · {(d.fileSize / 1024 / 1024).toFixed(2)} MB · Uploaded on {new Date(d.createdAt).toLocaleDateString()}
                 </p>
               </div>
-              <button
-                onClick={() => toast("Downloading...")}
-                className="rounded-lg p-2 text-text-faint hover:bg-surface-2 hover:text-primary"
-              >
-                <Download className="h-4 w-4" />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => window.open(d.fileUrl, "_blank")}
+                  className="rounded-lg p-2 text-text-faint hover:bg-surface-2 hover:text-primary"
+                  title="Download"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => deleteMutation.mutate(d._id)}
+                  className="rounded-lg p-2 text-text-faint hover:bg-danger/10 hover:text-danger"
+                  title="Delete"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           ))}
         </Card>
       )}
+
       <Modal
         open={modal}
         onClose={() => setModal(false)}
@@ -129,7 +167,7 @@ function LandlordDocs() {
             <Button variant="secondary" onClick={() => setModal(false)}>
               Cancel
             </Button>
-            <Button onClick={save}>Upload</Button>
+            <Button loading={uploadMutation.isPending} onClick={save}>Upload</Button>
           </>
         }
       >
@@ -153,11 +191,15 @@ function LandlordDocs() {
               )}
             </Select>
           </Field>
-          <div className="rounded-xl border-2 border-dashed border-border-strong p-8 text-center text-sm text-text-muted">
-            Click to select a file
-            <br />
-            <span className="text-xs">PDF, DOC, DOCX, JPG, PNG</span>
-          </div>
+          
+          <Field label="File">
+            <input 
+              type="file" 
+              className="w-full rounded-xl border border-border bg-surface p-2 text-sm"
+              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            />
+          </Field>
         </div>
       </Modal>
     </div>
@@ -173,11 +215,11 @@ function TenantDocs() {
   });
 
   const mainLease = documents.find(
-    (d) =>
-      d.documentType === "Lease" ||
-      d.documentName.toLowerCase().includes("lease"),
+    (d: any) =>
+      d.documentType === "Leases" ||
+      d.title.toLowerCase().includes("lease"),
   );
-  const otherDocs = documents.filter((d) => d._id !== mainLease?._id);
+  const otherDocs = documents.filter((d: any) => d._id !== mainLease?._id);
 
   if (isLoading) {
     return (
@@ -219,7 +261,7 @@ function TenantDocs() {
               <FileText className="h-6 w-6" />
             </span>
             <div>
-              <p className="font-bold">{mainLease.documentName}</p>
+              <p className="font-bold">{mainLease.title}</p>
               <p className="text-xs text-text-muted">
                 {(mainLease.fileSize / 1024 / 1024).toFixed(2)} MB ·{" "}
                 {new Date(mainLease.createdAt).toLocaleDateString("en-GB")}
@@ -228,7 +270,7 @@ function TenantDocs() {
           </div>
           <Button
             className="mt-4 w-full"
-            onClick={() => window.open(mainLease.documentUrl, "_blank")}
+            onClick={() => window.open(mainLease.fileUrl, "_blank")}
           >
             <Eye className="h-4 w-4" /> View Agreement
           </Button>
@@ -241,20 +283,20 @@ function TenantDocs() {
             Other Documents ({otherDocs.length})
           </h3>
           <Card className="divide-y divide-border">
-            {otherDocs.map((d) => (
+            {otherDocs.map((d: any) => (
               <div key={d._id} className="flex items-center gap-3 p-4">
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <FileText className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{d.documentName}</p>
+                  <p className="truncate font-semibold">{d.title}</p>
                   <p className="text-xs text-text-muted">
                     {d.documentType} · {(d.fileSize / 1024 / 1024).toFixed(2)}{" "}
                     MB
                   </p>
                 </div>
                 <button
-                  onClick={() => window.open(d.documentUrl, "_blank")}
+                  onClick={() => window.open(d.fileUrl, "_blank")}
                   className="rounded-lg p-2 text-text-faint hover:bg-surface-2 hover:text-primary"
                 >
                   <Download className="h-4 w-4" />
