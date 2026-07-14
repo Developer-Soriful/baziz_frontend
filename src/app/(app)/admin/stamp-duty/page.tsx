@@ -57,22 +57,29 @@ export default function StampDutyRatesAdminPage() {
 
   const simulateScrapeMutation = useMutation({
     mutationFn: async () => {
-      // Mock scraping HMRC / Revenue website and creating a proposal
+      const regions = ["england-ni", "wales", "scotland"];
+      const regimes = ["residential", "residential-ftb", "commercial"];
+      const randomRegion = regions[Math.floor(Math.random() * regions.length)];
+      const randomRegime = regimes[Math.floor(Math.random() * regimes.length)];
+
+      const randomSurcharge = Math.random() > 0.5 ? 0.03 : 0.04;
+      const topRate = Number((0.11 + Math.random() * 0.03).toFixed(3));
+
       const mockScrapedData = {
-        region: "england-ni",
-        regime: "residential",
-        surchargeRate: 0.03,
+        region: randomRegion,
+        regime: randomRegime,
+        surchargeRate: randomSurcharge,
         bands: [
           { upTo: 250000, rate: 0 },
           { upTo: 925000, rate: 0.05 },
           { upTo: 1500000, rate: 0.1 },
-          { upTo: -1, rate: 0.125 }, // AI Scraped slightly higher top rate
+          { upTo: -1, rate: topRate },
         ],
       };
       return calculatorService.createStampDutyProposal(mockScrapedData);
     },
-    onSuccess: () => {
-      toast("AI Refresh complete: New residential rates proposal created!");
+    onSuccess: (data) => {
+      toast(`AI Refresh complete: New ${data.region} (${data.regime}) rates proposal created!`);
       qc.invalidateQueries({ queryKey: ["adminStampDutyRates"] });
     },
     onError: () => {
