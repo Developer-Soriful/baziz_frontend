@@ -10,17 +10,19 @@ export interface StampDutyInputs {
   isSecondHome: boolean;
 }
 
-export function useStampDutyCalculator() {
+export function useStampDutyCalculator(initialInputs?: StampDutyInputs) {
   const { data: rates = [], isLoading } = useStampDutyRates();
 
-  const [inputs, setInputs] = useState<StampDutyInputs>({
-    region: "england-ni",
-    propertyType: "residential",
-    buyerType: "personal",
-    propertyPrice: 300000,
-    isFirstTimeBuyer: false,
-    isSecondHome: false,
-  });
+  const [inputs, setInputs] = useState<StampDutyInputs>(
+    initialInputs || {
+      region: "england-ni",
+      propertyType: "residential",
+      buyerType: "personal",
+      propertyPrice: 0,
+      isFirstTimeBuyer: false,
+      isSecondHome: false,
+    }
+  );
 
   const results = useMemo(() => {
     if (!rates.length) return { tax: 0, rows: [] };
@@ -104,5 +106,5 @@ export function useStampDutyCalculator() {
     setInputs((prev) => ({ ...prev, [key]: value }));
   };
 
-  return { inputs, updateInput, results, isLoading };
+  return { inputs, setInputs, updateInput, results, isLoading };
 }

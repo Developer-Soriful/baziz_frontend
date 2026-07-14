@@ -21,27 +21,29 @@ export interface ROIInputs {
   downPayment: number;
 }
 
-export function useROICalculator() {
-  const [inputs, setInputs] = useState<ROIInputs>({
-    purchasePrice: 300000,
-    stampDuty: 6000,
-    legalFees: 1500,
-    agentFees: 0,
-    refurbCosts: 5000,
-    otherCosts: 0,
+export function useROICalculator(initialInputs?: ROIInputs) {
+  const [inputs, setInputs] = useState<ROIInputs>(
+    initialInputs || {
+      purchasePrice: 0,
+      stampDuty: 0,
+      legalFees: 0,
+      agentFees: 0,
+      refurbCosts: 0,
+      otherCosts: 0,
 
-    monthlyRent: 1850,
-    monthlyMortgagePayment: 800,
-    managementFeePercent: 10,
-    annualRepairs: 600,
-    annualMaintenance: 500,
-    annualInsurance: 400,
-    annualOtherCosts: 0,
+      monthlyRent: 0,
+      monthlyMortgagePayment: 0,
+      managementFeePercent: 0,
+      annualRepairs: 0,
+      annualMaintenance: 0,
+      annualInsurance: 0,
+      annualOtherCosts: 0,
 
-    loanTermYears: 25,
-    interestRate: 5,
-    downPayment: 75000,
-  });
+      loanTermYears: 0,
+      interestRate: 0,
+      downPayment: 0,
+    }
+  );
 
   const results = useMemo(() => {
     const totalInvestment =
@@ -83,5 +85,5 @@ export function useROICalculator() {
     setInputs((prev) => ({ ...prev, [key]: value }));
   };
 
-  return { inputs, updateInput, results };
+  return { inputs, setInputs, updateInput, results };
 }

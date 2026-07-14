@@ -1,83 +1,100 @@
 import { useState, useMemo } from "react";
 
 export interface DevInputs {
-  // Land
-  landPurchasePrice: number;
+  // Acquisition
+  purchasePrice: number;
   stampDuty: number;
-  legalFees: number;
+  legalCosts: number;
   surveyFees: number;
 
-  // Build
+  // Development
   constructionCost: number;
   contingencyRate: number; // %
   architectFees: number;
-  planningFees: number;
-  buildingControl: number;
-  section106cil: number;
+  planningCosts: number;
+  buildingControlFees: number;
+  loanAmount: number;
+  financeRate: number; // annual %
+  financeFees: number; // one-off £
 
-  // Finance
-  financeCosts: number;
-  durationMonths: number;
+  // Project
+  projectDuration: number; // months
 
-  // GDV & Sale
-  gdv: number;
-  salesAgentFees: number;
-  salesLegalFees: number;
+  // Sale
+  projectedSalePrice: number; // GDV
+  agentFees: number;
+  legalSaleCosts: number;
 }
 
-export function useDevCalculator() {
-  const [inputs, setInputs] = useState<DevInputs>({
-    landPurchasePrice: 500000,
-    stampDuty: 15000,
-    legalFees: 5000,
-    surveyFees: 3000,
+export function useDevCalculator(initialInputs?: DevInputs) {
+  const [inputs, setInputs] = useState<DevInputs>(
+    initialInputs || {
+      purchasePrice: 0,
+      stampDuty: 0,
+      legalCosts: 0,
+      surveyFees: 0,
 
-    constructionCost: 800000,
-    contingencyRate: 10,
-    architectFees: 40000,
-    planningFees: 15000,
-    buildingControl: 10000,
-    section106cil: 0,
+      constructionCost: 0,
+      contingencyRate: 0,
+      architectFees: 0,
+      planningCosts: 0,
+      buildingControlFees: 0,
+      loanAmount: 0,
+      financeRate: 0,
+      financeFees: 0,
 
-    financeCosts: 60000,
-    durationMonths: 12,
+      projectDuration: 0,
 
-    gdv: 1800000,
-    salesAgentFees: 36000,
-    salesLegalFees: 8000,
-  });
+      projectedSalePrice: 0,
+      agentFees: 0,
+      legalSaleCosts: 0,
+    }
+  );
 
   const results = useMemo(() => {
-    const totalLand = inputs.landPurchasePrice + inputs.stampDuty + inputs.legalFees + inputs.surveyFees;
-    
-    const contingencyAmount = inputs.constructionCost * (inputs.contingencyRate / 100);
-    const totalBuild = 
-      inputs.constructionCost + 
-      contingencyAmount + 
-      inputs.architectFees + 
-      inputs.planningFees + 
-      inputs.buildingControl + 
-      inputs.section106cil;
+    const totalAcquisitionCosts =
+      inputs.purchasePrice + inputs.stampDuty + inputs.legalCosts + inputs.surveyFees;
 
-    const totalFinanceAndHolding = inputs.financeCosts;
-    const totalSaleCosts = inputs.salesAgentFees + inputs.salesLegalFees;
-
-    const totalCosts = totalLand + totalBuild + totalFinanceAndHolding + totalSaleCosts;
-    const grossProfit = inputs.gdv - totalCosts;
+    const contingency = inputs.constructionCost * (inputs.contingencyRate / 100);
     
-    const profitOnGDV = inputs.gdv > 0 ? (grossProfit / inputs.gdv) * 100 : 0;
-    const profitOnCost = totalCosts > 0 ? (grossProfit / totalCosts) * 100 : 0;
+    const durationYears = Math.max(inputs.projectDuration, 0) / 12;
+    const financeInterest = inputs.loanAmount * (inputs.financeRate / 100) * durationYears;
+    const financeCosts = financeInterest + inputs.financeFees;
+
+    const totalDevelopmentCosts =
+      inputs.constructionCost +
+      contingency +
+      inputs.architectFees +
+      inputs.planningCosts +
+      inputs.buildingControlFees +
+      financeCosts;
+
+    const totalProjectCosts = totalAcquisitionCosts + totalDevelopmentCosts;
+    const totalSaleCosts = inputs.agentFees + inputs.legalSaleCosts;
+    const netProceeds = inputs.projectedSalePrice - totalSaleCosts;
+    
+    const grossProfit = netProceeds - totalProjectCosts;
+
+    const profitMargin = totalProjectCosts > 0 ? (grossProfit / totalProjectCosts) * 100 : 0;
+    const returnOnCost = profitMargin;
+    const returnOnGDV = inputs.projectedSalePrice > 0 ? (grossProfit / inputs.projectedSalePrice) * 100 : 0;
+    const costPerMonth = inputs.projectDuration > 0 ? totalProjectCosts / inputs.projectDuration : 0;
 
     return {
-      totalLand,
-      contingencyAmount,
-      totalBuild,
-      totalFinanceAndHolding,
+      totalAcquisitionCosts,
+      contingency,
+      durationYears,
+      financeInterest,
+      financeCosts,
+      totalDevelopmentCosts,
+      totalProjectCosts,
       totalSaleCosts,
-      totalCosts,
+      netProceeds,
       grossProfit,
-      profitOnGDV,
-      profitOnCost,
+      profitMargin,
+      returnOnCost,
+      returnOnGDV,
+      costPerMonth,
     };
   }, [inputs]);
 
@@ -85,5 +102,5 @@ export function useDevCalculator() {
     setInputs((prev) => ({ ...prev, [key]: value }));
   };
 
-  return { inputs, updateInput, results };
+  return { inputs, setInputs, updateInput, results };
 }

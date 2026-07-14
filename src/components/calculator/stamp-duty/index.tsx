@@ -1,20 +1,43 @@
-import { Card } from "@/components/ui/primitives";
+import { useState } from "react";
+import { Card, Button } from "@/components/ui/primitives";
 import { Field, Input, Select } from "@/components/ui/form";
 import { CalculationBreakdown, type BreakdownRow } from "../shared/CalculationBreakdown";
 import { CalculatorActions } from "../shared/CalculatorActions";
 import { exportToCSV } from "../shared/calculatorExport";
-import { useStampDutyCalculator } from "./useStampDutyCalculator";
+import { useStampDutyCalculator, type StampDutyInputs } from "./useStampDutyCalculator";
 import { gbp } from "@/lib/utils";
+import { SaveCalculationDialog } from "../shared/SaveCalculationDialog";
+import { ShareCalculationDialog } from "../shared/ShareCalculationDialog";
+import { SavedCalculationsDialog } from "../shared/SavedCalculationsDialog";
+import { CompareCalculationsDialog } from "../shared/CompareCalculationsDialog";
+import { SavedCalculation } from "@/lib/services/calculator.service";
+import { useAuth } from "@/lib/auth";
+import Link from "next/link";
+import { Settings } from "lucide-react";
 
-export function StampDutyCalculator() {
-  const { inputs, updateInput, results, isLoading } = useStampDutyCalculator();
+export function StampDutyCalculator({
+  readOnly,
+  initialInputs,
+}: {
+  readOnly?: boolean;
+  initialInputs?: any;
+}) {
+  const { inputs, setInputs, updateInput, results, isLoading } = useStampDutyCalculator(initialInputs);
+  const { user } = useAuth();
+  const isLandlord = user?.role === "landlord";
 
-  const handleSave = () => {
-    alert("Save calculation logic pending");
-  };
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [loadOpen, setLoadOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [activeCalc, setActiveCalc] = useState<SavedCalculation | null>(null);
 
   const handleShare = () => {
-    alert("Share logic pending");
+    if (!activeCalc) {
+      alert("Please save this calculation first before sharing.");
+      return;
+    }
+    setShareOpen(true);
   };
 
   const handleExport = () => {
@@ -33,13 +56,29 @@ export function StampDutyCalculator() {
 
   return (
     <div className="space-y-6">
-      <CalculatorActions
-        onSave={handleSave}
-        onShare={handleShare}
-        onExport={handleExport}
-      />
+      {!readOnly && (
+        <CalculatorActions
+          onSave={() => setSaveOpen(true)}
+          onLoad={() => setLoadOpen(true)}
+          onCompare={() => setCompareOpen(true)}
+          onShare={handleShare}
+          onExport={handleExport}
+        />
+      )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {!readOnly && isLandlord && (
+        <div className="flex justify-end -mt-2 mb-2 animate-fade-in">
+          <Link href="/admin/stamp-duty">
+            <Button variant="outline" size="sm">
+              <Settings className="mr-2 h-4 w-4" />
+              Manage Tax Rates (Admin)
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      <fieldset disabled={readOnly} className="contents">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-5">
           <h3 className="mb-4 font-bold">Property Details</h3>
           <div className="space-y-4">
@@ -154,6 +193,38 @@ export function StampDutyCalculator() {
           )}
         </Card>
       </div>
+    </fieldset>
+
+      <SaveCalculationDialog
+        open={saveOpen}
+        onClose={() => setSaveOpen(false)}
+        calculatorType="stamp-duty"
+        inputs={inputs}
+        results={results}
+        onSaveSuccess={(calc) => setActiveCalc(calc)}
+      />
+
+      <ShareCalculationDialog
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        calculation={activeCalc}
+      />
+
+      <SavedCalculationsDialog
+        open={loadOpen}
+        onClose={() => setLoadOpen(false)}
+        calculatorType="stamp-duty"
+        onSelectCalculation={(calc) => {
+          setActiveCalc(calc);
+          setInputs(calc.inputs as StampDutyInputs);
+        }}
+      />
+
+      <CompareCalculationsDialog
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        calculatorType="stamp-duty"
+      />
     </div>
   );
 }

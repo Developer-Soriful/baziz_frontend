@@ -1,20 +1,37 @@
 import React from "react";
 import { Button } from "@/components/ui/primitives";
-import { Save, Share, Download } from "lucide-react";
+import { Save, Share, Download, FolderOpen, GitCompare } from "lucide-react";
 
 interface Props {
   onSave: () => void;
+  onLoad: () => void;
+  onCompare: () => void;
   onShare: () => void;
   onExport: () => void;
   isSaving?: boolean;
 }
 
-export function CalculatorActions({ onSave, onShare, onExport, isSaving }: Props) {
+export function CalculatorActions({
+  onSave,
+  onLoad,
+  onCompare,
+  onShare,
+  onExport,
+  isSaving,
+}: Props) {
   return (
     <div className="flex flex-wrap items-center gap-3 py-4 border-b border-border mb-5">
       <Button variant="primary" onClick={onSave} disabled={isSaving}>
         <Save className="mr-2 h-4 w-4" />
         {isSaving ? "Saving..." : "Save Calculation"}
+      </Button>
+      <Button variant="outline" onClick={onLoad}>
+        <FolderOpen className="mr-2 h-4 w-4" />
+        Saved Calculations
+      </Button>
+      <Button variant="outline" onClick={onCompare}>
+        <GitCompare className="mr-2 h-4 w-4" />
+        Compare
       </Button>
       <Button variant="outline" onClick={onShare}>
         <Share className="mr-2 h-4 w-4" />

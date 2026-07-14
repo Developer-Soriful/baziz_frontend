@@ -25,6 +25,7 @@ export interface StampDutyRateSet {
   status: "active" | "proposal" | "archived";
   bands: Array<{ upTo: number; rate: number }>;
   surchargeRate: number;
+  version?: number;
 }
 
 export const calculatorService = {
@@ -79,5 +80,25 @@ export const calculatorService = {
   getStampDutyRates: async () => {
     const res = await apiClient.get<any>(ENDPOINTS.STAMP_DUTY.ACTIVE_RATES);
     return res.data.data.rates as StampDutyRateSet[];
+  },
+
+  getAllStampDutyRates: async () => {
+    const res = await apiClient.get<any>(ENDPOINTS.STAMP_DUTY.PROPOSALS);
+    return res.data.data.rates as StampDutyRateSet[];
+  },
+
+  createStampDutyProposal: async (data: {
+    region: string;
+    regime: string;
+    surchargeRate: number;
+    bands: Array<{ upTo: number; rate: number }>;
+  }) => {
+    const res = await apiClient.post<any>(ENDPOINTS.STAMP_DUTY.PROPOSALS, data);
+    return res.data.data.rateSet as StampDutyRateSet;
+  },
+
+  approveStampDutyProposal: async (id: string) => {
+    const res = await apiClient.patch<any>(ENDPOINTS.STAMP_DUTY.APPROVE(id));
+    return res.data.data.rateSet as StampDutyRateSet;
   },
 };

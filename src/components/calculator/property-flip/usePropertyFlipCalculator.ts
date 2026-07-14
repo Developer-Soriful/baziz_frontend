@@ -30,31 +30,33 @@ export interface PropertyFlipInputs {
   annualExemption: number;
 }
 
-export function usePropertyFlipCalculator() {
-  const [inputs, setInputs] = useState<PropertyFlipInputs>({
-    purchasePrice: 200000,
-    stampDuty: 6000,
-    legalFees: 1500,
-    surveyFees: 500,
+export function usePropertyFlipCalculator(initialInputs?: PropertyFlipInputs) {
+  const [inputs, setInputs] = useState<PropertyFlipInputs>(
+    initialInputs || {
+      purchasePrice: 0,
+      stampDuty: 0,
+      legalFees: 0,
+      surveyFees: 0,
 
-    materialsCost: 30000,
-    contingencyRate: 15,
-    labourCost: 20000,
-    otherCosts: 2000,
+      materialsCost: 0,
+      contingencyRate: 0,
+      labourCost: 0,
+      otherCosts: 0,
 
-    loanAmount: 150000,
-    interestRate: 6.5,
-    durationMonths: 6,
-    arrangementFees: 1500,
+      loanAmount: 0,
+      interestRate: 0,
+      durationMonths: 0,
+      arrangementFees: 0,
 
-    arvSalePrice: 320000,
-    agentFees: 3500,
-    saleLegalFees: 1200,
+      arvSalePrice: 0,
+      agentFees: 0,
+      saleLegalFees: 0,
 
-    isBusinessFlip: false,
-    cgtBand: "higher",
-    annualExemption: 3000,
-  });
+      isBusinessFlip: false,
+      cgtBand: "higher",
+      annualExemption: 3000,
+    }
+  );
 
   const results = useMemo(() => {
     // 1. Refurb costs
@@ -105,5 +107,5 @@ export function usePropertyFlipCalculator() {
     setInputs((prev) => ({ ...prev, [key]: value }));
   };
 
-  return { inputs, updateInput, results };
+  return { inputs, setInputs, updateInput, results };
 }

@@ -88,5 +88,7 @@ export const ENDPOINTS = {
   },
   STAMP_DUTY: {
     ACTIVE_RATES: "/stamp-duty/rates/active",
+    PROPOSALS: "/stamp-duty/rates",
+    APPROVE: (id: string) => `/stamp-duty/rates/${id}/approve`,
   },
 };

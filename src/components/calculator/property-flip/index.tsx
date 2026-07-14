@@ -1,21 +1,38 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/primitives";
 import { Field, Input, Select } from "@/components/ui/form";
 import { CalculationBreakdown } from "../shared/CalculationBreakdown";
 import { CalculatorActions } from "../shared/CalculatorActions";
 import { exportToCSV } from "../shared/calculatorExport";
-import { usePropertyFlipCalculator } from "./usePropertyFlipCalculator";
+import { usePropertyFlipCalculator, type PropertyFlipInputs } from "./usePropertyFlipCalculator";
 import { gbp } from "@/lib/utils";
+import { SaveCalculationDialog } from "../shared/SaveCalculationDialog";
+import { ShareCalculationDialog } from "../shared/ShareCalculationDialog";
+import { SavedCalculationsDialog } from "../shared/SavedCalculationsDialog";
+import { CompareCalculationsDialog } from "../shared/CompareCalculationsDialog";
+import { SavedCalculation } from "@/lib/services/calculator.service";
 
-export function PropertyFlipCalculator() {
-  const { inputs, updateInput, results } = usePropertyFlipCalculator();
+export function PropertyFlipCalculator({
+  readOnly,
+  initialInputs,
+}: {
+  readOnly?: boolean;
+  initialInputs?: any;
+}) {
+  const { inputs, setInputs, updateInput, results } = usePropertyFlipCalculator(initialInputs);
 
-  const handleSave = () => {
-    alert("Save logic pending");
-  };
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [loadOpen, setLoadOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [activeCalc, setActiveCalc] = useState<SavedCalculation | null>(null);
 
   const handleShare = () => {
-    alert("Share logic pending");
+    if (!activeCalc) {
+      alert("Please save this calculation first before sharing.");
+      return;
+    }
+    setShareOpen(true);
   };
 
   const handleExport = () => {
@@ -39,9 +56,18 @@ export function PropertyFlipCalculator() {
 
   return (
     <div className="space-y-6">
-      <CalculatorActions onSave={handleSave} onShare={handleShare} onExport={handleExport} />
+      {!readOnly && (
+        <CalculatorActions
+          onSave={() => setSaveOpen(true)}
+          onLoad={() => setLoadOpen(true)}
+          onCompare={() => setCompareOpen(true)}
+          onShare={handleShare}
+          onExport={handleExport}
+        />
+      )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <fieldset disabled={readOnly} className="contents">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="space-y-4">
           <Card className="p-5">
             <h3 className="mb-4 font-bold">Purchase & Sale (£)</h3>
@@ -129,6 +155,38 @@ export function PropertyFlipCalculator() {
           />
         </Card>
       </div>
+    </fieldset>
+
+    <SaveCalculationDialog
+        open={saveOpen}
+        onClose={() => setSaveOpen(false)}
+        calculatorType="property-flip"
+        inputs={inputs}
+        results={results}
+        onSaveSuccess={(calc) => setActiveCalc(calc)}
+      />
+
+      <ShareCalculationDialog
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        calculation={activeCalc}
+      />
+
+      <SavedCalculationsDialog
+        open={loadOpen}
+        onClose={() => setLoadOpen(false)}
+        calculatorType="property-flip"
+        onSelectCalculation={(calc) => {
+          setActiveCalc(calc);
+          setInputs(calc.inputs as PropertyFlipInputs);
+        }}
+      />
+
+      <CompareCalculationsDialog
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        calculatorType="property-flip"
+      />
     </div>
   );
 }
