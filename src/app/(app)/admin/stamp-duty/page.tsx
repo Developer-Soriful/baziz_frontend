@@ -7,14 +7,17 @@ import { Card } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/primitives";
 import { Field, Input, Select } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
-import { ArrowLeft, RefreshCw, Check, AlertCircle, Plus, Trash } from "lucide-react";
+import { ArrowLeft, RefreshCw, Check, AlertCircle, Plus, Trash, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { gbp } from "@/lib/utils";
+import { validateBands } from "@/components/calculator/stamp-duty/validateBands";
 
 export default function StampDutyRatesAdminPage() {
   const toast = useToast();
   const qc = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [proposalsPage, setProposalsPage] = useState(1);
+  const [activePage, setActivePage] = useState(1);
 
   // Form State for Manual Proposal
   const [region, setRegion] = useState("england-ni");
@@ -25,21 +28,48 @@ export default function StampDutyRatesAdminPage() {
     { upTo: -1, rate: 0.12 },
   ]);
 
-  // Fetch all rate sets (active, proposals, archived)
-  const { data: rateSets = [], isLoading } = useQuery({
-    queryKey: ["adminStampDutyRates"],
-    queryFn: () => calculatorService.getAllStampDutyRates(),
+  // Fetch active rates (paginated)
+  const { data: activeRatesData, isLoading: isActiveLoading } = useQuery({
+    queryKey: ["adminActiveRates", activePage],
+    queryFn: () => calculatorService.getAllStampDutyRates({ status: "active", page: activePage, limit: 5 }),
+    placeholderData: (previousData) => previousData,
   });
+
+  // Fetch proposals (paginated)
+  const { data: proposalsData, isLoading: isProposalsLoading } = useQuery({
+    queryKey: ["adminProposals", proposalsPage],
+    queryFn: () => calculatorService.getAllStampDutyRates({ status: "proposal", page: proposalsPage, limit: 5 }),
+    placeholderData: (previousData) => previousData,
+  });
+
+  const activeRates = activeRatesData?.rates || [];
+  const proposals = proposalsData?.rates || [];
+  const activePagination = activeRatesData?.pagination;
+  const proposalsPagination = proposalsData?.pagination;
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => calculatorService.approveStampDutyProposal(id),
     onSuccess: () => {
       toast("Proposal approved and promoted to active!");
-      qc.invalidateQueries({ queryKey: ["adminStampDutyRates"] });
+      qc.invalidateQueries({ queryKey: ["adminActiveRates"] });
+      qc.invalidateQueries({ queryKey: ["adminProposals"] });
       qc.invalidateQueries({ queryKey: ["stampDutyRates"] });
     },
     onError: () => {
       toast("Failed to approve proposal", "error");
+    },
+  });
+
+  const revertMutation = useMutation({
+    mutationFn: (id: string) => calculatorService.revertStampDutyRate(id),
+    onSuccess: () => {
+      toast("Reverted to previous active version successfully!");
+      qc.invalidateQueries({ queryKey: ["adminActiveRates"] });
+      qc.invalidateQueries({ queryKey: ["adminProposals"] });
+      qc.invalidateQueries({ queryKey: ["stampDutyRates"] });
+    },
+    onError: () => {
+      toast("Failed to revert. Make sure a previous version exists.", "error");
     },
   });
 
@@ -48,7 +78,8 @@ export default function StampDutyRatesAdminPage() {
     onSuccess: () => {
       toast("Proposal created successfully!");
       setShowAddForm(false);
-      qc.invalidateQueries({ queryKey: ["adminStampDutyRates"] });
+      setProposalsPage(1);
+      qc.invalidateQueries({ queryKey: ["adminProposals"] });
     },
     onError: () => {
       toast("Failed to create proposal", "error");
@@ -80,7 +111,8 @@ export default function StampDutyRatesAdminPage() {
     },
     onSuccess: (data) => {
       toast(`AI Refresh complete: New ${data.region} (${data.regime}) rates proposal created!`);
-      qc.invalidateQueries({ queryKey: ["adminStampDutyRates"] });
+      setProposalsPage(1);
+      qc.invalidateQueries({ queryKey: ["adminProposals"] });
     },
     onError: () => {
       toast("Failed to run AI Scraper", "error");
@@ -102,11 +134,17 @@ export default function StampDutyRatesAdminPage() {
   };
 
   const handleCreateManualProposal = () => {
-    // Validate bands
     if (bands.length === 0) {
       toast("Please add at least one tax band", "error");
       return;
     }
+
+    const validation = validateBands(bands);
+    if (!validation.isValid) {
+      toast(validation.error || "Invalid tax bands. Please check your inputs.", "error");
+      return;
+    }
+
     createMutation.mutate({
       region,
       regime,
@@ -114,9 +152,6 @@ export default function StampDutyRatesAdminPage() {
       bands,
     });
   };
-
-  const activeRates = rateSets.filter((r) => r.status === "active");
-  const proposals = rateSets.filter((r) => r.status === "proposal");
 
   return (
     <div className="animate-in space-y-6 max-w-5xl mx-auto">
@@ -233,37 +268,85 @@ export default function StampDutyRatesAdminPage() {
             <Check className="h-5 w-5 text-success" />
             Active Rate Sets
           </h2>
-          {isLoading ? (
-            <p className="text-sm text-text-muted">Loading active rates...</p>
+          {isActiveLoading ? (
+            <p className="text-sm text-text-muted animate-pulse">Loading active rates...</p>
           ) : activeRates.length === 0 ? (
             <p className="text-sm text-text-muted">No active rate sets configured.</p>
           ) : (
             <div className="space-y-4">
-              {activeRates.map((rateSet) => (
-                <Card key={rateSet._id} className="p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-sm uppercase">
-                        {rateSet.region} &bull; {rateSet.regime}
-                      </h4>
-                      <p className="text-xs text-text-muted">
-                        Version {rateSet.version} &bull; Surcharge: {(rateSet.surchargeRate * 100).toFixed(0)}%
-                      </p>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/15 text-success uppercase">
-                      Active
-                    </span>
-                  </div>
-                  <div className="divide-y divide-border text-xs">
-                    {rateSet.bands.map((band, idx) => (
-                      <div key={idx} className="flex justify-between py-1.5 first:pt-0 last:pb-0">
-                        <span>{band.upTo === -1 ? "Above last band" : `Up to ${gbp(band.upTo)}`}</span>
-                        <span className="font-bold">{(band.rate * 100).toFixed(1)}%</span>
+              {activeRates.map((rateSet) => {
+                const version = rateSet.version || 0;
+                return (
+                  <Card key={rateSet._id} className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-sm uppercase">
+                          {rateSet.region} &bull; {rateSet.regime}
+                        </h4>
+                        <p className="text-xs text-text-muted">
+                          Version {version} &bull; Surcharge: {(rateSet.surchargeRate * 100).toFixed(0)}%
+                        </p>
                       </div>
-                    ))}
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/15 text-success uppercase">
+                          Active
+                        </span>
+                        {version > 1 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to revert to Version ${version - 1}?`)) {
+                                revertMutation.mutate(rateSet._id);
+                              }
+                            }}
+                            loading={revertMutation.isPending}
+                          >
+                            Revert to v{version - 1}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="divide-y divide-border text-xs">
+                      {rateSet.bands.map((band, idx) => (
+                        <div key={idx} className="flex justify-between py-1.5 first:pt-0 last:pb-0">
+                          <span>{band.upTo === -1 ? "Above last band" : `Up to ${gbp(band.upTo)}`}</span>
+                          <span className="font-bold">{(band.rate * 100).toFixed(1)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })}
+
+              {/* Active Rates Pagination Control */}
+              {activePagination && activePagination.totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-border pt-4 mt-2">
+                  <span className="text-xs text-text-muted">
+                    Page {activePagination.currentPage} of {activePagination.totalPages} ({activePagination.totalItems} total)
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={activePage <= 1}
+                      onClick={() => setActivePage((p) => Math.max(p - 1, 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={activePage >= activePagination.totalPages}
+                      onClick={() => setActivePage((p) => Math.min(p + 1, activePagination.totalPages))}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
                   </div>
-                </Card>
-              ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -274,8 +357,8 @@ export default function StampDutyRatesAdminPage() {
             <AlertCircle className="h-5 w-5 text-primary" />
             Rate Proposals (Drafts)
           </h2>
-          {isLoading ? (
-            <p className="text-sm text-text-muted">Loading proposals...</p>
+          {isProposalsLoading ? (
+            <p className="text-sm text-text-muted animate-pulse">Loading proposals...</p>
           ) : proposals.length === 0 ? (
             <div className="rounded-xl border border-border border-dashed p-6 text-center text-sm text-text-muted">
               No pending rate proposals. Run AI Refresh or click Create Proposal to propose tax rate updates.
@@ -312,6 +395,35 @@ export default function StampDutyRatesAdminPage() {
                   </div>
                 </Card>
               ))}
+
+              {/* Proposals Pagination Control */}
+              {proposalsPagination && proposalsPagination.totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-border pt-4 mt-2">
+                  <span className="text-xs text-text-muted">
+                    Page {proposalsPagination.currentPage} of {proposalsPagination.totalPages} ({proposalsPagination.totalItems} total)
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={proposalsPage <= 1}
+                      onClick={() => setProposalsPage((p) => Math.max(p - 1, 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={proposalsPage >= proposalsPagination.totalPages}
+                      onClick={() => setProposalsPage((p) => Math.min(p + 1, proposalsPagination.totalPages))}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

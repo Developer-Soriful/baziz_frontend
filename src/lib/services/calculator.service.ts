@@ -82,9 +82,17 @@ export const calculatorService = {
     return res.data.data.rates as StampDutyRateSet[];
   },
 
-  getAllStampDutyRates: async () => {
-    const res = await apiClient.get<any>(ENDPOINTS.STAMP_DUTY.PROPOSALS);
-    return res.data.data.rates as StampDutyRateSet[];
+  getAllStampDutyRates: async (params?: { status?: string; page?: number; limit?: number }) => {
+    const res = await apiClient.get<any>(ENDPOINTS.STAMP_DUTY.PROPOSALS, { params });
+    return res.data.data as {
+      rates: StampDutyRateSet[];
+      pagination?: {
+        totalItems: number;
+        totalPages: number;
+        currentPage: number;
+        limit: number;
+      };
+    };
   },
 
   createStampDutyProposal: async (data: {
@@ -99,6 +107,11 @@ export const calculatorService = {
 
   approveStampDutyProposal: async (id: string) => {
     const res = await apiClient.patch<any>(ENDPOINTS.STAMP_DUTY.APPROVE(id));
+    return res.data.data.rateSet as StampDutyRateSet;
+  },
+
+  revertStampDutyRate: async (id: string) => {
+    const res = await apiClient.patch<any>(ENDPOINTS.STAMP_DUTY.REVERT(id));
     return res.data.data.rateSet as StampDutyRateSet;
   },
 };
