@@ -46,7 +46,7 @@ export const ENDPOINTS = {
   },
   RENT_PAYMENTS: {
     TENANT: "/tenants/rent-payments",
-    LANDLORD: "/rent-payments",
+    LANDLORD: "/landlord/rent-payments",
   },
   DASHBOARD: {
     BASE: "/landlord/portfolio-overview",
@@ -91,5 +91,9 @@ export const ENDPOINTS = {
     PROPOSALS: "/stamp-duty/rates",
     APPROVE: (id: string) => `/stamp-duty/rates/${id}/approve`,
     REVERT: (id: string) => `/stamp-duty/rates/${id}/revert`,
+  },
+  AI: {
+    CHAT: "/ai/chat",
+    TRANSCRIBE: "/ai/transcribe",
   },
 };
