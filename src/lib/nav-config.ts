@@ -1,7 +1,7 @@
 import {
   Home, Building2, Store, MessageSquare, Grid3x3, CreditCard, Wrench, FileText,
   Users, ListTodo, MessageSquareWarning, ClipboardCheck, Contact, Bell, Receipt,
-  Calculator, Sparkles, Settings, User, Car, type LucideIcon,
+  Calculator, Sparkles, Settings, User, Car, Key, type LucideIcon,
 } from "lucide-react";
 import type { Role } from "./auth";
 
@@ -73,6 +73,7 @@ export function moreGroups(role: Role): MoreGroup[] {
         { label: "Documents Vault", href: "/documents", icon: FileText, desc: "Property documents and files" },
         { label: "Financial Calculators", href: "/calculators", icon: Calculator, desc: "Analyze property deals and ROI" },
         { label: "Contact Directory", href: "/contacts", icon: Contact, desc: "Manage your contacts" },
+        { label: "Exit Strategy Planning", href: "/more/exit-strategy", icon: Key, desc: "Capital gains, timing, and probate planning" },
       ],
     },
     {

@@ -8,8 +8,10 @@ import { useQuery } from "@tanstack/react-query";
 import { dashboardService } from "@/lib/services/dashboard.service";
 import { tenantService } from "@/lib/services/tenant.service";
 import { maintenanceService } from "@/lib/services/maintenance.service";
+import { taskService } from "@/lib/services/task.service";
 import { RevenueChart } from "@/components/charts";
 import { MapPanel } from "@/components/map-panel";
+import { useMemo } from "react";
 import {
   portfolioStats,
   revenueByMonth,
@@ -49,6 +51,37 @@ function LandlordHome() {
     queryFn: dashboardService.getStats,
     enabled: !!user && user.role === "landlord",
   });
+
+  const { data: taskResponse } = useQuery({
+    queryKey: ["dashboard-tasks"],
+    queryFn: () => taskService.getAll(),
+    enabled: !!user && user.role === "landlord",
+  });
+
+  const scheduleItems = useMemo(() => {
+    if (!taskResponse?.tasks || taskResponse.tasks.length === 0) {
+      return upcomingSchedule;
+    }
+    const items = taskResponse.tasks
+      .filter((t: any) => t.status !== "completed")
+      .map((t: any) => {
+        const isToday = new Date(t.dueDate).toDateString() === new Date().toDateString();
+        const timeStr = isToday 
+          ? "Today" 
+          : new Date(t.dueDate).toLocaleDateString("en-GB");
+
+        return {
+          title: t.title,
+          sub: t.property?.propertyName || "General Task",
+          time: timeStr,
+          tone: t.priority === "high" ? "danger" as const : t.priority === "medium" ? "warning" as const : "primary" as const,
+          dueDate: new Date(t.dueDate)
+        };
+      });
+
+    items.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    return items.slice(0, 3);
+  }, [taskResponse]);
 
   const realPortfolio = stats?.portfolioStats || portfolioStats;
   const realRevenue = stats?.revenueByMonth || revenueByMonth;
@@ -164,14 +197,23 @@ function LandlordHome() {
         <Card className="p-5">
           <h3 className="mb-4 font-bold">Upcoming Schedule</h3>
           <div className="space-y-3">
-            {upcomingSchedule.map((s) => (
+            {scheduleItems.map((s) => (
               <div key={s.title} className="flex items-start gap-3">
                 <span
-                  className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-${s.tone}/12 text-${s.tone}`}
+                  className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg"
                   style={{
                     background:
-                      s.tone === "warning" ? "#ff950022" : "#007aff22",
-                    color: s.tone === "warning" ? "#ff9500" : "#007aff",
+                      s.tone === "warning"
+                        ? "#ff950022"
+                        : s.tone === "danger"
+                        ? "#ff3b3022"
+                        : "#007aff22",
+                    color:
+                      s.tone === "warning"
+                        ? "#ff9500"
+                        : s.tone === "danger"
+                        ? "#ff3b30"
+                        : "#007aff",
                   }}
                 >
                   {s.tone === "warning" ? (

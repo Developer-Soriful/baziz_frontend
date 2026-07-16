@@ -27,6 +27,7 @@ export const ENDPOINTS = {
   TASKS: {
     BASE: "/tasks",
     BY_ID: (id: string) => `/tasks/${id}`,
+    AI_SUGGESTIONS: "/tasks/ai-suggestions",
   },
   CONTACTS: {
     BASE: "/contacts",
@@ -95,5 +96,7 @@ export const ENDPOINTS = {
   AI: {
     CHAT: "/ai/chat",
     TRANSCRIBE: "/ai/transcribe",
+    CGT_RATES: "/ai/tax-rates/cgt",
+    IHT_RATES: "/ai/tax-rates/iht",
   },
 };

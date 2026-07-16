@@ -114,4 +114,17 @@ export const calculatorService = {
     const res = await apiClient.patch<any>(ENDPOINTS.STAMP_DUTY.REVERT(id));
     return res.data.data.rateSet as StampDutyRateSet;
   },
+
+  // Exit Strategy Tax Rates
+  getCGTRates: async (year: string) => {
+    const res = await apiClient.get<any>(ENDPOINTS.AI.CGT_RATES, {
+      params: { year },
+    });
+    return res.data.data;
+  },
+
+  getIHTRates: async () => {
+    const res = await apiClient.get<any>(ENDPOINTS.AI.IHT_RATES);
+    return res.data.data;
+  },
 };
