@@ -335,7 +335,7 @@ export default function TasksPage() {
       setCreateModal(false);
       setEditingTask(null);
     },
-    onError: () => toast("Failed to update task", "error")
+    onError: (err: any) => toast(err?.message || "Failed to update task", "error")
   });
 
   const deleteTaskMutation = useMutation({
@@ -349,12 +349,33 @@ export default function TasksPage() {
   });
 
   const completeTaskMutation = useMutation({
-    mutationFn: taskService.complete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast("Task completed!");
+    mutationFn: (task: Task) => taskService.complete(task.id),
+    onMutate: async (task: Task) => {
+      // Optimistically remove the task from current view immediately
+      await queryClient.cancelQueries({ queryKey: ["tasks"] });
+      const previousData = queryClient.getQueryData(["tasks", tab, searchQuery, sortBy, activeFilters]);
+      queryClient.setQueryData(
+        ["tasks", tab, searchQuery, sortBy, activeFilters],
+        (old: any) => old ? { ...old, tasks: (old.tasks || []).filter((t: Task) => t.id !== task.id) } : old
+      );
+      return { previousData };
     },
-    onError: () => toast("Failed to complete task", "error")
+    onSuccess: (_data, task) => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      const isRecurring = task.recurrence?.pattern && task.recurrence.pattern !== "none";
+      if (isRecurring) {
+        toast(`✅ Task completed! Next recurring task has been auto-scheduled.`, "success" as any);
+      } else {
+        toast("✅ Task completed!");
+      }
+    },
+    onError: (err: any, _task, context: any) => {
+      // Roll back optimistic update on failure
+      if (context?.previousData) {
+        queryClient.setQueryData(["tasks", tab, searchQuery, sortBy, activeFilters], context.previousData);
+      }
+      toast(err?.message || "Failed to complete task", "error");
+    }
   });
 
   // ─── Filter & Sort Logic ──────────────────────────────────────────────────────
@@ -436,9 +457,13 @@ export default function TasksPage() {
   };
 
   const handleToggleSubtask = (task: Task, subtaskIdx: number) => {
-    const updatedSubtasks = [...task.subtasks];
-    updatedSubtasks[subtaskIdx].isCompleted = !updatedSubtasks[subtaskIdx].isCompleted;
-    updatedSubtasks[subtaskIdx].completedAt = updatedSubtasks[subtaskIdx].isCompleted ? new Date().toISOString() : null;
+    const updatedSubtasks = task.subtasks.map((st, i) => ({
+      title: st.title,
+      isCompleted: i === subtaskIdx ? !st.isCompleted : st.isCompleted,
+      completedAt: i === subtaskIdx
+        ? (!st.isCompleted ? new Date().toISOString() : null)
+        : (st.completedAt ?? null),
+    }));
 
     updateTaskMutation.mutate({
       id: task.id,
@@ -682,8 +707,8 @@ export default function TasksPage() {
                 >
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <button
-                      onClick={() => completeTaskMutation.mutate(task.id)}
-                      disabled={task.status === "completed"}
+                      onClick={() => completeTaskMutation.mutate(task)}
+                      disabled={task.status === "completed" || completeTaskMutation.isPending}
                       className={cn(
                         "flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full border-2 transition",
                         task.status === "completed"

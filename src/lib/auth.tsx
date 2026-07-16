@@ -7,6 +7,8 @@ import {
   setAccessToken,
   clearAccessToken,
   getAccessToken,
+  setRefreshToken,
+  clearRefreshToken,
 } from "./auth-storage";
 import { useRouter } from "next/navigation";
 import { User } from "./types/auth.types";
@@ -61,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res: any = await authService.login({ email, password });
       if (res.session?.accessToken) {
         setAccessToken(res.session.accessToken);
+        if (res.session?.refreshToken) setRefreshToken(res.session.refreshToken);
         qc.setQueryData(["me"], res.user);
         return null; // success
       }
@@ -87,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (res.session?.accessToken) {
         setAccessToken(res.session.accessToken);
+        if (res.session?.refreshToken) setRefreshToken(res.session.refreshToken);
         qc.setQueryData(["me"], res.user);
         return null;
       }
@@ -98,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearAccessToken();
+    clearRefreshToken();
     qc.setQueryData(["me"], null);
     router.push("/login");
   }, [qc, router]);
