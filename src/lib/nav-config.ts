@@ -90,6 +90,12 @@ export function moreGroups(role: Role): MoreGroup[] {
             desc: "Track your utilities & suppliers",
           },
           {
+            label: "Inspections",
+            href: "/inspections",
+            icon: ClipboardCheck,
+            desc: "View upcoming property inspections",
+          },
+          {
             label: "Make a Complaint",
             href: "/complaints",
             icon: MessageSquareWarning,
