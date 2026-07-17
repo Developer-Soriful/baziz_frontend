@@ -61,7 +61,7 @@ export const maintenance: MaintenanceTicket[] = [
   { id: "mnt_4", title: "Roof Leak Repair", description: "Fixed leak in master bedroom ceiling", property: "Sunset Apartments", tenant: "Alice Johnson", priority: "High", status: "completed", cost: 750, category: "Structural", date: "20/12/2024" },
   { id: "mnt_5", title: "Garbage Disposal Replacement", description: "Replaced faulty garbage disposal unit", property: "Oak Avenue Property", tenant: "Mark Smith", priority: "Normal", status: "completed", cost: 320, category: "Appliance", date: "15/12/2024" },
 ];
-export const maintenanceCategories = ["Plumbing", "Electrical", "Heating", "Structural", "Appliance", "Cleaning", "Landscaping", "Other"];
+export const maintenanceCategories = ["Plumbing", "Electrical", "Heating", "Structural", "Appliance", "Pest Control", "Security", "Cleaning", "Other"];
 export const maintenancePriorities = ["Low", "Normal", "High", "Urgent", "Emergency"];
 
 /* ---------------- Contacts ---------------- */
