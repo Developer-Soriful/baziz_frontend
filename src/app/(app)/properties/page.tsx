@@ -40,7 +40,10 @@ export default function PropertiesPage() {
       setImageFile(null);
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || err.response?.data?.error?.message || "Failed to add property";
+      const backendErrors = err.response?.data?.errors;
+      const msg = Array.isArray(backendErrors) && backendErrors.length > 0
+        ? backendErrors.join(", ")
+        : err.response?.data?.message || err.response?.data?.error?.message || "Failed to add property";
       toast(msg, "error");
     },
   });
@@ -96,6 +99,13 @@ export default function PropertiesPage() {
     if (!form.streetAddress.trim()) return toast("Enter street address", "error");
     if (!form.city.trim()) return toast("Enter city", "error");
     if (!form.postcode.trim()) return toast("Enter postcode", "error");
+
+    if (form.ownershipPercentage && (Number(form.ownershipPercentage) <= 0 || Number(form.ownershipPercentage) > 100)) {
+      return toast("Ownership percentage must be between 0.01 and 100", "error");
+    }
+    if (form.managementFeePercentage && (Number(form.managementFeePercentage) < 0 || Number(form.managementFeePercentage) > 100)) {
+      return toast("Management fee percentage must be between 0 and 100", "error");
+    }
 
     const fd = new FormData();
     fd.append("propertyName", form.propertyName);

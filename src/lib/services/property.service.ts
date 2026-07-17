@@ -46,4 +46,14 @@ export const propertyService = {
     apiClient
       .get<any>(`${ENDPOINTS.PROPERTIES.BY_ID(propertyId)}/expenses/report`, { params: { groupBy } })
       .then((r) => r.data?.data || r.data),
+
+  addUnit: (propertyId: string, data: any) =>
+    apiClient
+      .post<any>(`${ENDPOINTS.PROPERTIES.BY_ID(propertyId)}/units`, data)
+      .then((r) => r.data.data || r.data),
+
+  deleteUnit: (propertyId: string, unitId: string) =>
+    apiClient
+      .delete<any>(`${ENDPOINTS.PROPERTIES.BY_ID(propertyId)}/units/${unitId}`)
+      .then((r) => r.data),
 };

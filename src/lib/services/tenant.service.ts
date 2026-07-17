@@ -45,4 +45,31 @@ export const tenantService = {
         if (e.response?.status === 404) return null;
         throw e;
       }),
+
+  /** Public — fetch lease preview before signing up (no auth required) */
+  getLeasePreview: (leaseId: string) =>
+    apiClient
+      .get<any>(ENDPOINTS.TENANTS.LEASE_PREVIEW(leaseId))
+      .then((r) => r.data?.data || r.data),
+
+  /** Public — accept invitation and create tenant account */
+  acceptInvitation: (
+    leaseId: string,
+    data: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      password: string;
+    }
+  ) =>
+    apiClient
+      .post<any>(ENDPOINTS.TENANTS.ACCEPT_INVITATION(leaseId), data)
+      .then((r) => r.data),
+
+  /** Landlord — resend invitation email */
+  resendInvitation: (leaseId: string) =>
+    apiClient
+      .post<any>(`${ENDPOINTS.TENANTS.BASE}/${leaseId}/resend-invitation`, {})
+      .then((r) => r.data),
 };
+

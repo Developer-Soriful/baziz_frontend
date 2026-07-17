@@ -16,6 +16,8 @@ export const ENDPOINTS = {
   TENANTS: {
     BASE: "/tenants",
     BY_ID: (id: string) => `/tenants/${id}`,
+    ACCEPT_INVITATION: (leaseId: string) => `/tenants/accept-invitation/${leaseId}`,
+    LEASE_PREVIEW: (leaseId: string) => `/tenants/lease-preview/${leaseId}`,
   },
   PROPERTIES: {
     BASE: "/properties",

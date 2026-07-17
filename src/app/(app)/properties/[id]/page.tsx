@@ -7,6 +7,8 @@ import { PageTitle } from "@/components/page-title";
 import { Card, Badge, Button } from "@/components/ui/primitives";
 import { PillTabs, EmptyState } from "@/components/ui/misc";
 import { SimpleBar, DonutPie } from "@/components/charts";
+import { Modal } from "@/components/ui/modal";
+import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { gbp } from "@/lib/utils";
 import {
   ShieldCheck,
@@ -16,19 +18,35 @@ import {
   TrendingUp,
   MessageSquare,
   Home,
+  Plus,
+  Trash2,
 } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/toast";
 import { propertyService } from "@/lib/services/property.service";
 import { chatService } from "@/lib/services/chat.service";
+import { useAuth } from "@/lib/auth";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
-  const [tab, setTab] = useState<"Details" | "Tenants" | "Expenses" | "ROI">(
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [tab, setTab] = useState<"Details" | "Units" | "Tenants" | "Expenses" | "ROI">(
     "Details",
   );
+
+  const [unitModal, setUnitModal] = useState(false);
+  const [unitForm, setUnitForm] = useState({
+    unitNumber: "",
+    floor: "",
+    bedrooms: "",
+    bathrooms: "",
+    squareFeet: "",
+    rentAmount: "",
+    notes: "",
+  });
 
   const { data: realProperty, isLoading: isPropertyLoading } = useQuery({
     queryKey: ["property", id],
@@ -61,6 +79,46 @@ export default function PropertyDetail() {
       router.push(`/messages/${convo.id || convo._id}`);
     },
     onError: () => toast("Failed to open chat", "error"),
+  });
+
+  const addUnitMutation = useMutation({
+    mutationFn: (data: any) => propertyService.addUnit(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["property", id] });
+      toast("Unit added successfully", "success");
+      setUnitModal(false);
+      setUnitForm({
+        unitNumber: "",
+        floor: "",
+        bedrooms: "",
+        bathrooms: "",
+        squareFeet: "",
+        rentAmount: "",
+        notes: "",
+      });
+    },
+    onError: (err: any) => {
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error?.message ||
+        "Failed to add unit";
+      toast(msg, "error");
+    },
+  });
+
+  const deleteUnitMutation = useMutation({
+    mutationFn: (unitId: string) => propertyService.deleteUnit(id, unitId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["property", id] });
+      toast("Unit deleted successfully", "success");
+    },
+    onError: (err: any) => {
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error?.message ||
+        "Failed to delete unit";
+      toast(msg, "error");
+    },
   });
 
   if (isPropertyLoading) {
@@ -228,14 +286,14 @@ export default function PropertyDetail() {
       : []),
   ];
 
-  const managerName = realProperty.agentName || "Emma Richardson";
+  const managerName = realProperty.agentName || user?.name || "Landlord (Self-Managed)";
 
   const agencyName =
-    realProperty.companyAgencyName || "Oakwood Property Management";
+    realProperty.companyAgencyName || (realProperty.agentName ? "Independent Agent" : "Self-Managed");
 
-  const managerPhone = realProperty.agentPhone || "+44 20 3874 5621";
+  const managerPhone = realProperty.agentPhone || (user as any)?.phone || "—";
 
-  const managerEmail = realProperty.agentEmail || "info@oakwoodpm.co.uk";
+  const managerEmail = realProperty.agentEmail || user?.email || "—";
 
   const categoryColors: Record<string, string> = {
     repairs: "#008577",
@@ -349,7 +407,7 @@ export default function PropertyDetail() {
         <PillTabs
           value={tab}
           onChange={setTab}
-          tabs={["Details", "Tenants", "Expenses", "ROI"]}
+          tabs={["Details", "Units", "Tenants", "Expenses", "ROI"]}
         />
       </div>
 
@@ -394,6 +452,60 @@ export default function PropertyDetail() {
               {managerEmail} · {managerPhone}
             </p>
           </Card>
+        </div>
+      )}
+
+      {tab === "Units" && (
+        <div className="mt-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold">Units List</h3>
+            <Button size="sm" onClick={() => setUnitModal(true)}>
+              <Plus className="mr-1 h-4 w-4" /> Add Unit
+            </Button>
+          </div>
+          {realProperty.units?.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Home}
+                title="No units found"
+                message="Add a unit to this property to start managing leases."
+              />
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(realProperty.units || []).map((unit: any) => (
+                <Card key={unit._id} className="p-5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-extrabold text-lg">Unit {unit.unitNumber}</h4>
+                      <Badge tone={unit.isOccupied ? "success" : "neutral"}>
+                        {unit.isOccupied ? "Occupied" : "Vacant"}
+                      </Badge>
+                    </div>
+                    {unit.floor && <p className="text-xs text-text-muted mt-0.5">Floor: {unit.floor}</p>}
+                    
+                    <div className="mt-3 space-y-1 text-sm text-text-muted">
+                      <p>Rent: <span className="font-semibold text-text">{unit.rentAmount ? gbp(unit.rentAmount) : "—"}</span></p>
+                      <p>Specs: <span className="font-semibold text-text">{unit.bedrooms || 0} Bed · {unit.bathrooms || 0} Bath</span></p>
+                      {unit.squareFeet && <p>Size: <span className="font-semibold text-text">{unit.squareFeet} sq ft</span></p>}
+                    </div>
+                  </div>
+                  
+                  {!unit.isOccupied && (
+                    <div className="mt-4 pt-3 border-t border-border flex justify-end">
+                      <button
+                        onClick={() => deleteUnitMutation.mutate(unit._id)}
+                        disabled={deleteUnitMutation.isPending}
+                        className="flex items-center gap-1 text-xs font-semibold text-danger hover:underline"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Delete Unit
+                      </button>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -556,6 +668,98 @@ export default function PropertyDetail() {
           </Card>
         </div>
       )}
+
+      <Modal
+        open={unitModal}
+        onClose={() => setUnitModal(false)}
+        title="Add Unit"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setUnitModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!unitForm.unitNumber.trim()) {
+                  return toast("Unit number is required", "error");
+                }
+                addUnitMutation.mutate({
+                  unitNumber: unitForm.unitNumber,
+                  floor: unitForm.floor || undefined,
+                  bedrooms: unitForm.bedrooms ? Number(unitForm.bedrooms) : undefined,
+                  bathrooms: unitForm.bathrooms ? Number(unitForm.bathrooms) : undefined,
+                  squareFeet: unitForm.squareFeet ? Number(unitForm.squareFeet) : undefined,
+                  rentAmount: unitForm.rentAmount ? Number(unitForm.rentAmount) : undefined,
+                  notes: unitForm.notes || undefined,
+                });
+              }}
+              loading={addUnitMutation.isPending}
+            >
+              Add Unit
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Field label="Unit Number (e.g. Flat 1, Suite A)">
+            <Input
+              value={unitForm.unitNumber}
+              onChange={(e) => setUnitForm({ ...unitForm, unitNumber: e.target.value })}
+              placeholder="Flat 1"
+            />
+          </Field>
+          <Field label="Floor (e.g. Ground, 1st)">
+            <Input
+              value={unitForm.floor}
+              onChange={(e) => setUnitForm({ ...unitForm, floor: e.target.value })}
+              placeholder="Ground Floor"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Bedrooms">
+              <Input
+                type="number"
+                value={unitForm.bedrooms}
+                onChange={(e) => setUnitForm({ ...unitForm, bedrooms: e.target.value })}
+                placeholder="1"
+              />
+            </Field>
+            <Field label="Bathrooms">
+              <Input
+                type="number"
+                value={unitForm.bathrooms}
+                onChange={(e) => setUnitForm({ ...unitForm, bathrooms: e.target.value })}
+                placeholder="1"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Square Feet">
+              <Input
+                type="number"
+                value={unitForm.squareFeet}
+                onChange={(e) => setUnitForm({ ...unitForm, squareFeet: e.target.value })}
+                placeholder="550"
+              />
+            </Field>
+            <Field label="Expected Rent (£ / mo)">
+              <Input
+                type="number"
+                value={unitForm.rentAmount}
+                onChange={(e) => setUnitForm({ ...unitForm, rentAmount: e.target.value })}
+                placeholder="1200"
+              />
+            </Field>
+          </div>
+          <Field label="Notes">
+            <Textarea
+              value={unitForm.notes}
+              onChange={(e) => setUnitForm({ ...unitForm, notes: e.target.value })}
+              placeholder="Any specific detail about this unit..."
+            />
+          </Field>
+        </div>
+      </Modal>
     </div>
   );
 }
