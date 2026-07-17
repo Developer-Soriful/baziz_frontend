@@ -1,9 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
 @import "tailwindcss";
 
-/* ============================================================
-   PROPERTERA WEB — Design System (Tailwind v4)
-   Consumer property-management web app. Teal brand, iOS feel.
-   ============================================================ */
 
 @theme {
   --color-primary: #008577;
@@ -37,7 +35,7 @@
   --color-pink: #ec4899;
   --color-cyan: #06b6d4;
 
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), Inter, sans-serif;
 
   --radius-sm: 10px;
   --radius-md: 12px;
@@ -93,7 +91,9 @@ html {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans);
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+
 }
 ::selection {
   background: rgba(0, 133, 119, 0.2);

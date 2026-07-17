@@ -19,6 +19,7 @@ export interface ChatPreview {
   address: string;
   category: "Tenant" | "Marketplace" | "Group";
   unread: number;
+  participants?: any[];
 }
 
 export const chatService = {
@@ -66,6 +67,7 @@ export const chatService = {
           address: c.title || "Property",
           category: categoryMap[c.category] || "Tenant",
           unread: c.unreadCount || 0,
+          participants: c.participants,
         } as ChatPreview;
       });
     }),
@@ -100,6 +102,7 @@ export const chatService = {
         address: c.title || "Property",
         category: categoryMap[c.category] || "Tenant",
         unread: c.unreadCount || 0,
+        participants: c.participants,
       } as ChatPreview;
     }),
 
@@ -117,9 +120,21 @@ export const chatService = {
       })) as ChatMessage[];
     }),
 
-  sendMessage: (chatId: string, content: string) =>
-    apiClient
-      .post<any>(ENDPOINTS.CHAT.MESSAGES(chatId), { text: content })
+  sendMessage: (chatId: string, content: string) => {
+    const clientMessageId = typeof window !== "undefined" && window.crypto?.randomUUID
+      ? window.crypto.randomUUID()
+      : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          const v = c === "x" ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+
+    return apiClient
+      .post<any>(ENDPOINTS.CHAT.MESSAGES(chatId), {
+        clientMessageId,
+        type: "text",
+        content: { text: content }
+      })
       .then((r) => {
         const m = r.data?.data?.message;
         return {
@@ -131,5 +146,16 @@ export const chatService = {
           timestamp: m.sentAt,
           read: false,
         } as ChatMessage;
-      }),
+      });
+  },
+
+  createDirectConversation: (propertyId: string, otherUserId: string) =>
+    apiClient
+      .post<any>(`${ENDPOINTS.CHAT.ROOMS}/direct`, { propertyId, otherUserId })
+      .then((r) => r.data?.data?.conversation || r.data?.conversation || r.data),
+
+  getTenantDefaultConversation: () =>
+    apiClient
+      .get<any>(`${ENDPOINTS.CHAT.BASE}/tenant/default-conversation`)
+      .then((r) => r.data?.data?.conversation || r.data?.conversation || r.data),
 };

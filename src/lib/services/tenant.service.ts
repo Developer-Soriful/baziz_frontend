@@ -4,13 +4,17 @@ import { Tenant } from "../data";
 
 export const tenantService = {
   getAll: () =>
-    apiClient.get<Tenant[]>(ENDPOINTS.TENANTS.BASE).then((r) => r.data),
+    apiClient
+      .get<any>(`${ENDPOINTS.TENANTS.BASE}/my-tenants`)
+      .then((r) => r.data?.data?.leases || r.data?.leases || r.data || []),
 
   getById: (id: string) =>
     apiClient.get<Tenant>(ENDPOINTS.TENANTS.BY_ID(id)).then((r) => r.data),
 
   create: (data: Partial<Tenant>) =>
-    apiClient.post<Tenant>(ENDPOINTS.TENANTS.BASE, data).then((r) => r.data),
+    apiClient
+      .post<any>(`${ENDPOINTS.TENANTS.BASE}/invite`, data)
+      .then((r) => r.data),
 
   update: (id: string, data: Partial<Tenant>) =>
     apiClient

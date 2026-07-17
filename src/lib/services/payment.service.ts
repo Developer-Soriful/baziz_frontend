@@ -14,7 +14,10 @@ export interface Payment {
 export const paymentService = {
   // For landlords
   getAll: () =>
-    apiClient.get<Payment[]>(ENDPOINTS.RENT_PAYMENTS.LANDLORD).then((r) => r.data),
+    apiClient
+      .get<any>(ENDPOINTS.RENT_PAYMENTS.LANDLORD)
+      .then((r) => r.data?.data?.payments ?? r.data?.payments ?? r.data ?? [])
+      .catch(() => []),
 
   // For tenants
   getMyPayments: () =>
