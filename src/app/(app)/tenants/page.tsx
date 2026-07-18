@@ -10,7 +10,7 @@ import { Field, Input, Select } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { tenantTone, type Tenant } from "@/lib/data";
 import { colorFromString } from "@/lib/utils";
-import { UserPlus, Users, MessageSquare } from "lucide-react";
+import { UserPlus, Users, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantService } from "@/lib/services/tenant.service";
 import { chatService } from "@/lib/services/chat.service";
@@ -44,6 +44,7 @@ export default function TenantsPage() {
   });
 
   const [invitedLink, setInvitedLink] = useState<string | null>(null);
+  const [editingLeaseId, setEditingLeaseId] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: tenantService.create,
@@ -60,6 +61,32 @@ export default function TenantsPage() {
       const msg = err.response?.data?.message || err.response?.data?.error?.message || "Failed to invite tenant";
       toast(msg, "error");
     },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (args: { id: string; data: any }) => tenantService.update(args.id, args.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tenants"] });
+      toast("Tenant details updated successfully", "success");
+      setModal(false);
+      setEditingLeaseId(null);
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || "Failed to update tenant";
+      toast(msg, "error");
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: tenantService.delete,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tenants"] });
+      toast("Tenant deleted successfully", "success");
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || "Failed to delete tenant";
+      toast(msg, "error");
+    }
   });
 
   const startChatMutation = useMutation({
@@ -108,7 +135,30 @@ export default function TenantsPage() {
     
     return matchesQuery && matchesFilter;
   });
+  const startEdit = (t: any) => {
+    setEditingLeaseId(t._id || t.id);
+    setForm({
+      tenantFullName: t.tenantFullName || "",
+      tenantEmail: t.tenantEmail || "",
+      tenantPhone: t.tenantPhone || "",
+      propertyId: t.propertyId?._id || t.propertyId || "",
+      unitId: t.unitId || "",
+      rentAmount: String(t.rentAmount || ""),
+      securityDeposit: String(t.securityDeposit || ""),
+      paymentFrequency: t.paymentFrequency || "monthly",
+      paymentDueDay: String(t.paymentDueDay || "1"),
+      leaseStartDate: t.leaseStartDate ? new Date(t.leaseStartDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      leaseEndDate: t.leaseEndDate ? new Date(t.leaseEndDate).toISOString().split("T")[0] : new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0],
+      numberOfParkingSpots: String(t.numberOfParkingSpots || "0"),
+    });
+    setModal(true);
+  };
 
+  const startDelete = (leaseId: string) => {
+    if (confirm("Are you sure you want to delete this tenant and terminate their lease agreement? This action cannot be undone.")) {
+      deleteMutation.mutate(leaseId);
+    }
+  };
   const save = () => {
     if (!form.tenantFullName.trim()) return toast("Enter tenant full name", "error");
     if (!form.tenantEmail.trim()) return toast("Enter tenant email", "error");
@@ -117,7 +167,7 @@ export default function TenantsPage() {
     if (!form.unitId) return toast("Select a unit", "error");
     if (!form.rentAmount) return toast("Enter rent amount", "error");
 
-    createMutation.mutate({
+    const payload = {
       propertyId: form.propertyId,
       unitId: form.unitId,
       tenantFullName: form.tenantFullName,
@@ -131,7 +181,13 @@ export default function TenantsPage() {
       leaseEndDate: new Date(form.leaseEndDate).toISOString(),
       numberOfParkingSpots: Number(form.numberOfParkingSpots),
       parkingBayNumbers: [],
-    } as any);
+    } as any;
+
+    if (editingLeaseId) {
+      updateMutation.mutate({ id: editingLeaseId, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
   };
 
   const selectedProperty = properties.find((p: any) => (p.id || p._id) === form.propertyId);
@@ -145,7 +201,24 @@ export default function TenantsPage() {
         title="Current Tenants"
         subtitle="View and manage all tenants"
         action={
-          <Button onClick={() => setModal(true)}>
+          <Button onClick={() => {
+            setEditingLeaseId(null);
+            setForm({
+              tenantFullName: "",
+              tenantEmail: "",
+              tenantPhone: "",
+              propertyId: "",
+              unitId: "",
+              rentAmount: "",
+              securityDeposit: "",
+              paymentFrequency: "monthly",
+              paymentDueDay: "1",
+              leaseStartDate: new Date().toISOString().split("T")[0],
+              leaseEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0],
+              numberOfParkingSpots: "0",
+            });
+            setModal(true);
+          }}>
             <UserPlus className="h-4 w-4" /> Add Tenant
           </Button>
         }
@@ -201,16 +274,33 @@ export default function TenantsPage() {
                     <p className="font-bold">{rent}</p>
                     <Badge tone={tenantTone(status)}>{status}</Badge>
                   </div>
-                  {hasIds && (
+                  <div className="flex items-center gap-1.5">
+                    {hasIds && (
+                      <button
+                        onClick={() => startChatMutation.mutate({ propertyId, tenantId })}
+                        disabled={startChatMutation.isPending}
+                        className="rounded-xl bg-primary/10 p-2.5 text-primary hover:bg-primary/20 transition disabled:opacity-50"
+                        title="Send Message"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
-                      onClick={() => startChatMutation.mutate({ propertyId, tenantId })}
-                      disabled={startChatMutation.isPending}
-                      className="rounded-xl bg-primary/10 p-2.5 text-primary hover:bg-primary/20 transition disabled:opacity-50"
-                      title="Send Message"
+                      onClick={() => startEdit(t)}
+                      className="rounded-xl bg-info/10 p-2.5 text-info hover:bg-info/20 transition"
+                      title="Edit Tenant"
                     >
-                      <MessageSquare className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </button>
-                  )}
+                    <button
+                      onClick={() => startDelete(t.id || t._id)}
+                      disabled={deleteMutation.isPending}
+                      className="rounded-xl bg-danger/10 p-2.5 text-danger hover:bg-danger/20 transition disabled:opacity-50"
+                      title="Delete Tenant"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </Card>
             );
@@ -220,14 +310,14 @@ export default function TenantsPage() {
       <Modal
         open={modal}
         onClose={() => setModal(false)}
-        title="Invite New Tenant"
+        title={editingLeaseId ? "Edit Tenant Details" : "Invite New Tenant"}
         footer={
           <>
             <Button variant="secondary" onClick={() => setModal(false)}>
               Cancel
             </Button>
-            <Button onClick={save} loading={createMutation.isPending}>
-              Send Invitation
+            <Button onClick={save} loading={editingLeaseId ? updateMutation.isPending : createMutation.isPending}>
+              {editingLeaseId ? "Save Changes" : "Send Invitation"}
             </Button>
           </>
         }

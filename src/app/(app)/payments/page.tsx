@@ -215,12 +215,16 @@ function TenantPayments() {
     queryKey: ["tenant-dashboard"],
     queryFn: tenantService.getDashboard,
     enabled: !!user && user.role === "tenant",
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   const { data: tenantPayments = [], isLoading: isPaymentsLoading } = useQuery({
     queryKey: ["payments-tenant"],
     queryFn: paymentService.getMyPayments,
     enabled: !!user && user.role === "tenant",
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   const isLoading = isDashboardLoading || isPaymentsLoading;
@@ -293,14 +297,16 @@ function TenantPayments() {
         style={{ background: "linear-gradient(120deg,#008577,#00574b)" }}
       >
         <p className="text-sm text-white/80">
-          {upcomingRent
-            ? upcomingRent.status?.toLowerCase() === "paid"
-              ? "Rent Paid"
-              : `Monthly Rent · Due ${new Date(upcomingRent.dueDate).toLocaleDateString("en-GB")}`
-            : "Rent Status"}
+          {upcomingRent && upcomingRent.status?.toLowerCase() !== "paid"
+            ? `Monthly Rent · Due ${new Date(upcomingRent.dueDate).toLocaleDateString("en-GB")}`
+            : "Monthly Rent"}
         </p>
         <p className="mt-1 text-4xl font-extrabold">
-          {upcomingRent ? formatAmount(upcomingRent.amount) : "No Rent Due"}
+          {upcomingRent && upcomingRent.status?.toLowerCase() !== "paid"
+            ? formatAmount(upcomingRent.amount)
+            : dashboard?.currentRent?.amount
+            ? formatAmount(dashboard.currentRent.amount)
+            : "No Rent Due"}
         </p>
         <p className="mt-1 text-xs text-white/70">
           {upcomingRent?.status?.toLowerCase() === "paid"
