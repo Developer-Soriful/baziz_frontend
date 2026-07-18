@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { PageTitle } from "@/components/page-title";
 import { Card, Badge, Button } from "@/components/ui/primitives";
-import { EmptyState, PillTabs } from "@/components/ui/misc";
-import { Car, KeyRound, Building2, User2, ShieldAlert } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { EmptyState } from "@/components/ui/misc";
+import { Modal } from "@/components/ui/modal";
+import { Field, Select, Input } from "@/components/ui/form";
+import { Car, KeyRound, Building2, User2, Plus } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantService } from "@/lib/services/tenant.service";
 import { propertyService } from "@/lib/services/property.service";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/components/ui/toast";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -19,9 +22,25 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+const emptyAddForm = {
+  propertyId: "",
+  unitId: "",
+  bayNumber: "",
+  level: "Ground Floor",
+  notes: "",
+};
+
 export default function ParkingPage() {
   const { user } = useAuth();
+  const toast = useToast();
+  const qc = useQueryClient();
   const isTenant = user?.role === "tenant";
+
+  // ── Local State ──────────────────────────────────────────────────────────
+  const [assignTarget, setAssignTarget] = useState<any | null>(null);
+  const [selectedLeaseId, setSelectedLeaseId] = useState("");
+  const [addModal, setAddModal] = useState(false);
+  const [addForm, setAddForm] = useState(emptyAddForm);
 
   // ── Tenant Query ─────────────────────────────────────────────────────────
   const { data: myLease, isLoading: isTenantLoading } = useQuery({
@@ -35,6 +54,79 @@ export default function ParkingPage() {
     queryKey: ["properties-parking"],
     queryFn: propertyService.getAll,
     enabled: !isTenant,
+  });
+
+  const { data: tenantLeases = [] } = useQuery({
+    queryKey: ["all-leases-parking"],
+    queryFn: tenantService.getAll,
+    enabled: !isTenant,
+  });
+
+  // Filter units belonging to the selected property in the add form
+  const selectedPropertyInAdd = (properties as any[]).find(
+    (p: any) => (p._id || p.id) === addForm.propertyId
+  );
+  const availableUnitsForAdd = selectedPropertyInAdd?.units || [];
+
+  // ── Mutations ─────────────────────────────────────────────────────────────
+  const addMutation = useMutation({
+    mutationFn: ({
+      propertyId,
+      unitId,
+      payload,
+    }: {
+      propertyId: string;
+      unitId: string;
+      payload: { action: "add"; parkingBays: Array<{ bayNumber: string; level?: string; notes?: string }> };
+    }) => tenantService.updateParkingBays(propertyId, unitId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["properties-parking"] });
+      toast("Parking space added successfully", "success");
+      setAddModal(false);
+      setAddForm(emptyAddForm);
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || "Failed to add parking space";
+      toast(msg, "error");
+    },
+  });
+
+  const allocateMutation = useMutation({
+    mutationFn: ({
+      propertyId,
+      unitId,
+      bayNumber,
+      leaseId,
+    }: {
+      propertyId: string;
+      unitId: string;
+      bayNumber: string;
+      leaseId: string;
+    }) => tenantService.allocateParkingBay(propertyId, unitId, bayNumber, leaseId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["properties-parking"] });
+      toast("Parking spot assigned successfully", "success");
+      setAssignTarget(null);
+      setSelectedLeaseId("");
+    },
+    onError: () => toast("Failed to assign parking spot", "error"),
+  });
+
+  const releaseMutation = useMutation({
+    mutationFn: ({
+      propertyId,
+      unitId,
+      bayNumber,
+    }: {
+      propertyId: string;
+      unitId: string;
+      bayNumber: string;
+    }) => tenantService.releaseParkingBay(propertyId, unitId, bayNumber),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["properties-parking"] });
+      toast("Parking spot released successfully", "success");
+    },
+    onError: () => toast("Failed to release parking spot", "error"),
   });
 
   const isLoading = isTenant ? isTenantLoading : isLandlordLoading;
@@ -115,6 +207,8 @@ export default function ParkingPage() {
       unit.parkingBays?.forEach((bay: any) => {
         portfolioBays.push({
           ...bay,
+          propertyId: prop._id || prop.id,
+          unitId: unit._id || unit.id,
           propertyName: prop.propertyName || prop.name,
           unitNumber: unit.unitNumber,
         });
@@ -126,11 +220,48 @@ export default function ParkingPage() {
   const occupiedBays = portfolioBays.filter((b) => b.assignedToTenant).length;
   const vacantBays = totalBays - occupiedBays;
 
+  const handleAddSubmit = () => {
+    if (!addForm.propertyId) return toast("Select a property", "error");
+    if (!addForm.unitId) return toast("Select a unit", "error");
+    if (!addForm.bayNumber.trim()) return toast("Enter a bay number", "error");
+
+    addMutation.mutate({
+      propertyId: addForm.propertyId,
+      unitId: addForm.unitId,
+      payload: {
+        action: "add",
+        parkingBays: [
+          {
+            bayNumber: addForm.bayNumber.trim(),
+            level: addForm.level,
+            notes: addForm.notes || undefined,
+          },
+        ],
+      },
+    });
+  };
+
+  const handleAssignSubmit = () => {
+    if (!assignTarget || !selectedLeaseId) return;
+    allocateMutation.mutate({
+      propertyId: assignTarget.propertyId,
+      unitId: assignTarget.unitId,
+      bayNumber: assignTarget.bayNumber,
+      leaseId: selectedLeaseId,
+    });
+  };
+
   return (
     <div className="animate-in space-y-6">
+      {/* ── Page Header ── */}
       <PageTitle
         title="Parking Portfolio"
         subtitle="Manage and allocate parking spaces across your properties"
+        action={
+          <Button onClick={() => setAddModal(true)}>
+            <Plus className="h-4 w-4" /> Add Parking Space
+          </Button>
+        }
       />
 
       {/* KPI Stats Widgets */}
@@ -154,7 +285,7 @@ export default function ParkingPage() {
           <EmptyState
             icon={Car}
             title="No Parking Spaces Configured"
-            message="No parking bays have been set up under any of your property units yet. You can add them during unit creation."
+            message="No parking bays have been set up under any of your property units yet. Click 'Add Parking Space' to create one."
           />
         </Card>
       ) : (
@@ -198,12 +329,39 @@ export default function ParkingPage() {
                     </span>
                   )}
                   {bay.assignedToTenant ? (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 text-xs font-semibold text-text-muted">
-                      <User2 className="h-3.5 w-3.5" /> Assigned to tenant
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 text-xs font-semibold text-text-muted">
+                        <User2 className="h-3.5 w-3.5" /> Assigned
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="!border-danger !text-danger"
+                        loading={releaseMutation.isPending}
+                        onClick={() =>
+                          releaseMutation.mutate({
+                            propertyId: bay.propertyId,
+                            unitId: bay.unitId,
+                            bayNumber: bay.bayNumber,
+                          })
+                        }
+                      >
+                        Release Spot
+                      </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-xs font-semibold text-emerald-600">
-                      Available for Lease
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-xs font-semibold text-emerald-600">
+                        Available
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="!border-primary !text-primary"
+                        onClick={() => setAssignTarget(bay)}
+                      >
+                        Assign Tenant
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -211,6 +369,129 @@ export default function ParkingPage() {
             ))}
           </div>
         </Card>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          ADD PARKING BAY MODAL (LANDLORD)
+      ══════════════════════════════════════════════ */}
+      {addModal && (
+        <Modal
+          open={addModal}
+          onClose={() => setAddModal(false)}
+          title="Add Parking Space"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setAddModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddSubmit} loading={addMutation.isPending}>
+                Create Space
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <Field label="Property">
+              <Select
+                value={addForm.propertyId}
+                onChange={(e) => setAddForm({ ...addForm, propertyId: e.target.value, unitId: "" })}
+              >
+                <option value="">Select a property...</option>
+                {(properties as any[]).map((p: any) => (
+                  <option key={p._id || p.id} value={p._id || p.id}>
+                    {p.propertyName || p.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field label="Unit">
+              <Select
+                value={addForm.unitId}
+                onChange={(e) => setAddForm({ ...addForm, unitId: e.target.value })}
+                disabled={!addForm.propertyId}
+              >
+                <option value="">Select a unit...</option>
+                {availableUnitsForAdd.map((u: any) => (
+                  <option key={u._id || u.id} value={u._id || u.id}>
+                    Unit {u.unitNumber}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Bay Number">
+                <Input
+                  value={addForm.bayNumber}
+                  onChange={(e) => setAddForm({ ...addForm, bayNumber: e.target.value })}
+                  placeholder="e.g. P101"
+                />
+              </Field>
+              <Field label="Floor Level">
+                <Input
+                  value={addForm.level}
+                  onChange={(e) => setAddForm({ ...addForm, level: e.target.value })}
+                  placeholder="e.g. Underground / Ground"
+                />
+              </Field>
+            </div>
+
+            <Field label="Notes (optional)">
+              <Input
+                value={addForm.notes}
+                onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
+                placeholder="e.g. Reserved for compact cars"
+              />
+            </Field>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          ASSIGN PARKING BAY MODAL (LANDLORD)
+      ══════════════════════════════════════════════ */}
+      {assignTarget && (
+        <Modal
+          open={!!assignTarget}
+          onClose={() => setAssignTarget(null)}
+          title={`Assign Bay ${assignTarget.bayNumber}`}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setAssignTarget(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAssignSubmit} loading={allocateMutation.isPending}>
+                Save Assignment
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-text-muted">
+              Select an active tenant lease in **{assignTarget.propertyName} (Unit {assignTarget.unitNumber})** to allocate this parking space.
+            </p>
+            <Field label="Active Tenant Leases">
+              <Select
+                value={selectedLeaseId}
+                onChange={(e) => setSelectedLeaseId(e.target.value)}
+              >
+                <option value="">Select a lease...</option>
+                {tenantLeases
+                  .filter((lease: any) => {
+                    const leasePropId = String(lease.propertyId?._id || lease.propertyId);
+                    const targetPropId = String(assignTarget.propertyId);
+                    return leasePropId === targetPropId && lease.status === "active";
+                  })
+                  .map((lease: any) => (
+                    <option key={lease.id || lease._id} value={lease.id || lease._id}>
+                      {lease.tenantFullName || lease.tenantEmail} ({lease.tenantEmail})
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+          </div>
+        </Modal>
       )}
     </div>
   );

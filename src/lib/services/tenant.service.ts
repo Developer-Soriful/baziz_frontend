@@ -71,5 +71,23 @@ export const tenantService = {
     apiClient
       .post<any>(`${ENDPOINTS.TENANTS.BASE}/${leaseId}/resend-invitation`, {})
       .then((r) => r.data),
+
+  /** Landlord — allocate parking bay to a lease */
+  allocateParkingBay: (propertyId: string, unitId: string, bayNumber: string, leaseId: string) =>
+    apiClient
+      .post<any>(`${ENDPOINTS.TENANTS.BASE}/properties/${propertyId}/units/${unitId}/parking/allocate`, { bayNumber, leaseId })
+      .then((r) => r.data),
+
+  /** Landlord — release parking bay */
+  releaseParkingBay: (propertyId: string, unitId: string, bayNumber: string) =>
+    apiClient
+      .post<any>(`${ENDPOINTS.TENANTS.BASE}/properties/${propertyId}/units/${unitId}/parking/release`, { bayNumber })
+      .then((r) => r.data),
+
+  /** Landlord — configure (add/update/remove) parking bays on a unit */
+  updateParkingBays: (propertyId: string, unitId: string, data: any) =>
+    apiClient
+      .put<any>(`${ENDPOINTS.TENANTS.BASE}/properties/${propertyId}/units/${unitId}/parking`, data)
+      .then((r) => r.data),
 };
 

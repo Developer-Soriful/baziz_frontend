@@ -20,12 +20,16 @@ import {
   Home,
   Plus,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/toast";
 import { propertyService } from "@/lib/services/property.service";
 import { chatService } from "@/lib/services/chat.service";
 import { useAuth } from "@/lib/auth";
+import { ComplianceEditDialog } from "@/components/property/details/ComplianceEditDialog";
+import { useHmoLicenceReminders } from "@/hooks/useHmoLicenceReminders";
+import { PropertyFinancialMetrics } from "@/components/property/details/PropertyFinancialMetrics";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +42,7 @@ export default function PropertyDetail() {
   );
 
   const [unitModal, setUnitModal] = useState(false);
+  const [complianceEditOpen, setComplianceEditOpen] = useState(false);
   const [unitForm, setUnitForm] = useState({
     unitNumber: "",
     floor: "",
@@ -53,6 +58,8 @@ export default function PropertyDetail() {
     queryFn: () => propertyService.getById(id),
     enabled: !!id,
   });
+
+  useHmoLicenceReminders(realProperty);
 
   const { data: dbTenants = [], isLoading: isLoadingTenants } = useQuery({
     queryKey: ["property-tenants", id],
@@ -168,7 +175,6 @@ export default function PropertyDetail() {
   );
 
   const realDetails: [string, string][] = [
-    ["Rental Yield", computedYield],
     [
       "Monthly Rent",
       monthlyRentVal > 0 ? gbp(monthlyRentVal, { decimals: true }) : "—",
@@ -238,49 +244,61 @@ export default function PropertyDetail() {
 
   const getCertStatus = (expiryDateStr: string | null | undefined) => {
     if (!expiryDateStr)
-      return { status: "Not Provided", tone: "neutral" as const };
+      return { status: "Not Set", tone: "neutral" as const };
     const date = new Date(expiryDateStr);
-    const isExpired = date.getTime() < Date.now();
-    return {
-      status: isExpired ? "Expired" : "Valid",
-      tone: isExpired ? ("danger" as const) : ("success" as const),
-    };
+    const now = new Date();
+    const diffTime = date.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 0) {
+      return { status: "Overdue", tone: "danger" as const };
+    }
+    if (diffDays <= 30) {
+      return { status: `${diffDays} days remaining`, tone: "warning" as const };
+    }
+    return { status: "Valid", tone: "success" as const };
   };
+
+  const comp = realProperty.compliance || {};
+  const gasSafety = comp.gasSafetyExpiry || realProperty.gasSafetyExpiry;
+  const electricalSafety = comp.electricalSafetyExpiry || realProperty.electricalSafetyExpiry;
+  const smokeAlarm = comp.smokeAlarmExpiry || realProperty.smokeAlarmExpiry;
+  const hmoExpiry = comp.hmoLicenceExpiryDate || comp.hmoLicenceExpiry || realProperty.hmoLicenceExpiry;
 
   const formattedCerts = [
     {
       name: "Gas Safety Certificate (CP12)",
-      date: realProperty.gasSafetyExpiry
-        ? new Date(realProperty.gasSafetyExpiry).toLocaleDateString("en-GB")
+      date: gasSafety
+        ? new Date(gasSafety).toLocaleDateString("en-GB")
         : "—",
-      ...getCertStatus(realProperty.gasSafetyExpiry),
+      ...getCertStatus(gasSafety),
     },
     {
       name: "Electrical Safety (EICR)",
-      date: realProperty.electricalSafetyExpiry
-        ? new Date(realProperty.electricalSafetyExpiry).toLocaleDateString(
+      date: electricalSafety
+        ? new Date(electricalSafety).toLocaleDateString(
             "en-GB",
           )
         : "—",
-      ...getCertStatus(realProperty.electricalSafetyExpiry),
+      ...getCertStatus(electricalSafety),
     },
     {
       name: "Smoke Alarm Check",
-      date: realProperty.smokeAlarmExpiry
-        ? new Date(realProperty.smokeAlarmExpiry).toLocaleDateString("en-GB")
+      date: smokeAlarm
+        ? new Date(smokeAlarm).toLocaleDateString("en-GB")
         : "—",
-      ...getCertStatus(realProperty.smokeAlarmExpiry),
+      ...getCertStatus(smokeAlarm),
     },
     ...(realProperty.propertyType === "hmo"
       ? [
           {
             name: "HMO Licence",
-            date: realProperty.hmoLicenceExpiry
-              ? new Date(realProperty.hmoLicenceExpiry).toLocaleDateString(
+            date: hmoExpiry
+              ? new Date(hmoExpiry).toLocaleDateString(
                   "en-GB",
                 )
               : "—",
-            ...getCertStatus(realProperty.hmoLicenceExpiry),
+            ...getCertStatus(hmoExpiry),
           },
         ]
       : []),
@@ -413,6 +431,7 @@ export default function PropertyDetail() {
 
       {tab === "Details" && (
         <div className="mt-4 space-y-4">
+          <PropertyFinancialMetrics property={realProperty} tenants={dbTenants} />
           <Card className="p-5">
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
               {realDetails.map(([k, v]) => (
@@ -424,10 +443,19 @@ export default function PropertyDetail() {
             </div>
           </Card>
           <Card className="p-5">
-            <h3 className="mb-3 flex items-center gap-2 font-bold">
-              <ShieldCheck className="h-4 w-4 text-primary" /> Safety
-              Certificates
-            </h3>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 font-bold">
+                <ShieldCheck className="h-4 w-4 text-primary" /> Safety
+                Certificates
+              </h3>
+              <button
+                onClick={() => setComplianceEditOpen(true)}
+                className="rounded-lg p-1 text-text-faint hover:bg-surface-2 hover:text-text transition"
+                title="Edit Safety & Compliance"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            </div>
             <div className="divide-y divide-border">
               {formattedCerts.map((c) => (
                 <div
@@ -442,6 +470,20 @@ export default function PropertyDetail() {
                 </div>
               ))}
             </div>
+            
+            {realProperty.propertyType === "hmo" && (realProperty.compliance?.hmoLicenceNumber || realProperty.compliance?.hmoLicenceIssuingAuthority) && (
+              <div className="mt-4 pt-3 border-t border-border space-y-1 text-sm text-text-muted">
+                <p className="font-semibold text-text mb-1">HMO Licence Details</p>
+                <p>Licence No: <span className="font-semibold text-text">{realProperty.compliance?.hmoLicenceNumber || "—"}</span></p>
+                <p>Issued by: <span className="font-semibold text-text">{realProperty.compliance?.hmoLicenceIssuingAuthority || "—"}</span></p>
+                {realProperty.compliance?.hmoLicenceIssueDate && (
+                  <p>Issue Date: <span className="font-semibold text-text">{new Date(realProperty.compliance.hmoLicenceIssueDate).toLocaleDateString("en-GB")}</span></p>
+                )}
+                {realProperty.compliance?.hmoLicenceReminderLeadDays && (
+                  <p>Reminder Lead: <span className="font-semibold text-text">{realProperty.compliance.hmoLicenceReminderLeadDays} days</span></p>
+                )}
+              </div>
+            )}
           </Card>
           <Card className="p-5">
             <h3 className="mb-2 font-bold">Managed By</h3>
@@ -760,6 +802,12 @@ export default function PropertyDetail() {
           </Field>
         </div>
       </Modal>
+
+      <ComplianceEditDialog
+        open={complianceEditOpen}
+        onClose={() => setComplianceEditOpen(false)}
+        property={realProperty}
+      />
     </div>
   );
 }

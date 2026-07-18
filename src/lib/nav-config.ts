@@ -163,6 +163,12 @@ export function moreGroups(role: Role): MoreGroup[] {
           desc: "Property inspections",
         },
         {
+          label: "Parking Portfolio",
+          href: "/parking",
+          icon: Car,
+          desc: "Manage and allocate parking spots",
+        },
+        {
           label: "Tenant Complaints",
           href: "/complaints",
           icon: MessageSquareWarning,

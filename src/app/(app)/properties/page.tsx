@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { propertyService } from "@/lib/services/property.service";
+import { PropertyHmoLicenceDetails } from "@/components/portfolio/PropertyHmoLicenceDetails";
 
 export default function PropertiesPage() {
   const toast = useToast();
@@ -38,6 +39,7 @@ export default function PropertiesPage() {
       toast("Property added", "success");
       setModal(false);
       setImageFile(null);
+      setHmoErrors({});
     },
     onError: (err: any) => {
       const backendErrors = err.response?.data?.errors;
@@ -76,7 +78,20 @@ export default function PropertiesPage() {
     smokeAlarmExpiry: "",
     hmoLicenceExpiry: "",
     leaseEnd: "",
+    hmoLicenceNumber: "",
+    hmoLicenceIssuingAuthority: "",
+    hmoLicenceIssueDate: "",
+    hmoLicenceExpiryDate: "",
+    hmoLicenceReminderLeadDays: "60",
   });
+
+  const [hmoErrors, setHmoErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (form.propertyType !== "hmo") {
+      setHmoErrors({});
+    }
+  }, [form.propertyType]);
 
   const filtered = properties.filter((p: any) => {
     const name = (p.propertyName || p.name || "").toLowerCase();
@@ -131,10 +146,40 @@ export default function PropertiesPage() {
     if (form.gasSafetyExpiry) fd.append("gasSafetyExpiry", new Date(form.gasSafetyExpiry).toISOString());
     if (form.electricalSafetyExpiry) fd.append("electricalSafetyExpiry", new Date(form.electricalSafetyExpiry).toISOString());
     if (form.smokeAlarmExpiry) fd.append("smokeAlarmExpiry", new Date(form.smokeAlarmExpiry).toISOString());
-    if (form.hmoLicenceExpiry && form.propertyType === "hmo") {
-      fd.append("hmoLicenceExpiry", new Date(form.hmoLicenceExpiry).toISOString());
-    }
     if (form.leaseEnd) fd.append("leaseEnd", new Date(form.leaseEnd).toISOString());
+
+    if (form.propertyType === "hmo") {
+      const errs: Record<string, string> = {};
+      if (!form.hmoLicenceNumber.trim()) errs.hmoLicenceNumber = 'Licence number is required.';
+      if (!form.hmoLicenceIssuingAuthority.trim()) errs.hmoLicenceIssuingAuthority = 'Issuing authority is required.';
+      if (!form.hmoLicenceIssueDate) {
+        errs.hmoLicenceIssueDate = 'Issue date is required.';
+      } else if (new Date(form.hmoLicenceIssueDate) > new Date()) {
+        errs.hmoLicenceIssueDate = 'Issue date cannot be in the future.';
+      }
+      if (!form.hmoLicenceExpiryDate) {
+        errs.hmoLicenceExpiryDate = 'Expiry date is required.';
+      } else if (form.hmoLicenceIssueDate && new Date(form.hmoLicenceExpiryDate) <= new Date(form.hmoLicenceIssueDate)) {
+        errs.hmoLicenceExpiryDate = 'Expiry must be after issue date.';
+      }
+      const lead = parseInt(form.hmoLicenceReminderLeadDays);
+      if (form.hmoLicenceReminderLeadDays && (isNaN(lead) || lead < 1 || lead > 365)) {
+        errs.hmoLicenceReminderLeadDays = 'Reminder lead must be between 1 and 365.';
+      }
+
+      if (Object.keys(errs).length > 0) {
+        setHmoErrors(errs);
+        return toast("Please resolve HMO licence errors.", "error");
+      }
+
+      fd.append("hmoLicenceNumber", form.hmoLicenceNumber.trim());
+      fd.append("hmoLicenceIssuingAuthority", form.hmoLicenceIssuingAuthority.trim());
+      if (form.hmoLicenceIssueDate) fd.append("hmoLicenceIssueDate", new Date(form.hmoLicenceIssueDate).toISOString());
+      if (form.hmoLicenceExpiryDate) {
+        fd.append("hmoLicenceExpiry", new Date(form.hmoLicenceExpiryDate).toISOString());
+      }
+      fd.append("hmoLicenceReminderLeadDays", form.hmoLicenceReminderLeadDays || "60");
+    }
 
     if (imageFile) {
       fd.append("propertyImage", imageFile);
@@ -509,13 +554,19 @@ export default function PropertiesPage() {
             </Field>
           </div>
           {form.propertyType === "hmo" && (
-            <Field label="HMO Licence Expiry Date">
-              <Input
-                type="date"
-                value={form.hmoLicenceExpiry}
-                onChange={(e) => setForm({ ...form, hmoLicenceExpiry: e.target.value })}
+            <div className="col-span-2 mt-2">
+              <PropertyHmoLicenceDetails
+                values={{
+                  hmoLicenceNumber: form.hmoLicenceNumber,
+                  hmoLicenceIssuingAuthority: form.hmoLicenceIssuingAuthority,
+                  hmoLicenceIssueDate: form.hmoLicenceIssueDate,
+                  hmoLicenceExpiryDate: form.hmoLicenceExpiryDate,
+                  hmoLicenceReminderLeadDays: form.hmoLicenceReminderLeadDays,
+                }}
+                onChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
+                errors={hmoErrors}
               />
-            </Field>
+            </div>
           )}
         </div>
       </Modal>

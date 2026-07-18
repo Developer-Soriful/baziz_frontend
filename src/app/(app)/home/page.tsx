@@ -12,6 +12,8 @@ import { taskService } from "@/lib/services/task.service";
 import { RevenueChart } from "@/components/charts";
 import { MapPanel } from "@/components/map-panel";
 import { useMemo } from "react";
+import { propertyService } from "@/lib/services/property.service";
+import { EntityYieldCard } from "@/components/dashboard/EntityYieldCard";
 import {
   portfolioStats,
   revenueByMonth,
@@ -55,6 +57,12 @@ function LandlordHome() {
   const { data: taskResponse } = useQuery({
     queryKey: ["dashboard-tasks"],
     queryFn: () => taskService.getAll(),
+    enabled: !!user && user.role === "landlord",
+  });
+
+  const { data: properties = [] } = useQuery({
+    queryKey: ["properties"],
+    queryFn: propertyService.getAll,
     enabled: !!user && user.role === "landlord",
   });
 
@@ -156,41 +164,25 @@ function LandlordHome() {
             <RevenueChart data={realRevenue} />
           </div>
         </Card>
-        <Card className="p-5">
-          <h3 className="mb-4 font-bold">Portfolio Analytics</h3>
-          <div className="space-y-4">
-            {analyticsBars.map((r) => (
-              <div key={r.label}>
-                <div className="mb-1.5 flex justify-between text-sm">
-                  <span className="text-text-muted">{r.label}</span>
-                  <span className="font-bold">
-                    {r.display ?? `${r.value}%`}
-                  </span>
+        <div className="flex flex-col gap-4">
+          <Card className="p-5">
+            <h3 className="mb-4 font-bold">Portfolio Analytics</h3>
+            <div className="space-y-4">
+              {analyticsBars.map((r) => (
+                <div key={r.label}>
+                  <div className="mb-1.5 flex justify-between text-sm">
+                    <span className="text-text-muted">{r.label}</span>
+                    <span className="font-bold">
+                      {r.display ?? `${r.value}%`}
+                    </span>
+                  </div>
+                  <Progress value={r.value} color={r.color} />
                 </div>
-                <Progress value={r.value} color={r.color} />
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-text-faint">
-              Yield by Ownership
-            </p>
-            <div className="flex items-center justify-between text-sm">
-              <span>
-                Personal Portfolio{" "}
-                <span className="text-text-faint">· 2 properties</span>
-              </span>
-              <span className="font-bold text-primary">13.00%</span>
+              ))}
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span>
-                Property Co Ltd{" "}
-                <span className="text-text-faint">· 2 properties</span>
-              </span>
-              <span className="font-bold text-primary">9.00%</span>
-            </div>
-          </div>
-        </Card>
+          </Card>
+          <EntityYieldCard properties={properties} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
