@@ -50,21 +50,35 @@ function LandlordPayments() {
       qc.invalidateQueries({ queryKey: ["payments-all"] });
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || err.message || "Failed to generate bills";
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to generate bills";
       toast(msg, "error");
-    }
+    },
   });
 
   const [filter, setFilter] = useState<"all" | "Paid" | "Pending" | "Overdue">(
     "all",
   );
   const filtered = list.filter(
-    (p: any) => filter === "all" || p.status === filter,
+    (p: any) =>
+      filter === "all" ||
+      (p.status || "").toLowerCase() === filter.toLowerCase(),
   );
   const num = (s: string | number) =>
     typeof s === "number" ? s : parseFloat(s.replace(/[£,]/g, ""));
+
   const collected = list
-    .filter((p: any) => p.status === "Paid")
+    .filter((p: any) => (p.status || "").toLowerCase() === "paid")
+    .reduce((s: number, p: any) => s + num(p.amount), 0);
+
+  const pending = list
+    .filter((p: any) => (p.status || "").toLowerCase() === "pending")
+    .reduce((s: number, p: any) => s + num(p.amount), 0);
+
+  const overdue = list
+    .filter((p: any) => (p.status || "").toLowerCase() === "overdue")
     .reduce((s: number, p: any) => s + num(p.amount), 0);
 
   return (
@@ -80,7 +94,10 @@ function LandlordPayments() {
             >
               Generate Bills
             </Button>
-            <Button variant="secondary" onClick={() => toast("Report generated")}>
+            <Button
+              variant="secondary"
+              onClick={() => toast("Report generated")}
+            >
               Export Report
             </Button>
           </div>
@@ -92,7 +109,11 @@ function LandlordPayments() {
             <CheckCircle2 className="h-5 w-5" />
           </span>
           <p className="mt-2 text-xl font-extrabold">
-            £{collected.toLocaleString()}
+            £
+            {collected.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </p>
           <p className="text-xs text-text-muted">Collected</p>
         </Card>
@@ -100,14 +121,26 @@ function LandlordPayments() {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-warning/12 text-warning">
             <Clock className="h-5 w-5" />
           </span>
-          <p className="mt-2 text-xl font-extrabold">£0.00</p>
+          <p className="mt-2 text-xl font-extrabold">
+            £
+            {pending.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
           <p className="text-xs text-text-muted">Pending</p>
         </Card>
         <Card className="p-4">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-danger/12 text-danger">
             <AlertTriangle className="h-5 w-5" />
           </span>
-          <p className="mt-2 text-xl font-extrabold">£0.00</p>
+          <p className="mt-2 text-xl font-extrabold">
+            £
+            {overdue.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
           <p className="text-xs text-text-muted">Overdue</p>
         </Card>
       </div>
@@ -138,10 +171,14 @@ function LandlordPayments() {
                 <Wallet className="h-4 w-4" />
               </span>
               <div className="flex-1">
-                <p className="font-semibold">{p.tenant?.name || p.tenant || "Unknown Tenant"}</p>
+                <p className="font-semibold">
+                  {p.tenant?.name || p.tenant || "Unknown Tenant"}
+                </p>
                 <p className="text-xs text-text-muted">
                   {p.property?.name || p.property || "Unknown Property"} ·{" "}
-                  {new Date(p.date || p.dueDate || Date.now()).toLocaleDateString("en-GB")}
+                  {new Date(
+                    p.date || p.dueDate || Date.now(),
+                  ).toLocaleDateString("en-GB")}
                 </p>
               </div>
               <span className="font-bold">
@@ -268,12 +305,17 @@ function TenantPayments() {
         <p className="mt-1 text-xs text-white/70">
           {upcomingRent?.status?.toLowerCase() === "paid"
             ? "You are all caught up! The rent invoice for this period has been paid."
-            : !upcomingRent && "You are all caught up! There are no pending invoices to pay."}
+            : !upcomingRent &&
+              "You are all caught up! There are no pending invoices to pay."}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Button
             onClick={handleStartPayment}
-            disabled={!upcomingRent || upcomingRent.status?.toLowerCase() === "paid" || isFetchingSecret}
+            disabled={
+              !upcomingRent ||
+              upcomingRent.status?.toLowerCase() === "paid" ||
+              isFetchingSecret
+            }
             loading={isFetchingSecret}
             variant="secondary"
             className="rounded-xl px-5 py-2.5 text-sm font-bold bg-white text-primary hover:bg-white/95 disabled:opacity-50"
