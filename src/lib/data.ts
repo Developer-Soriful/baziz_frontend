@@ -193,7 +193,7 @@ export const tenantRecentPayments = [
 ];
 
 /* ---------------- Tone helpers ---------------- */
-export function paymentTone(status: Payment["status"]): StatusTone { return status === "Paid" ? "success" : status === "Pending" ? "warning" : "danger"; }
+export function paymentTone(status: string): StatusTone { const s = (status || "").toLowerCase(); return s === "paid" ? "success" : s === "pending" ? "warning" : "danger"; }
 export function tenantTone(status: Tenant["status"]): StatusTone { return status === "Active" ? "success" : status === "Expiring" ? "warning" : "danger"; }
 export function maintTone(status: MaintenanceTicket["status"]): StatusTone { return status === "completed" ? "success" : status === "active" ? "info" : status === "scheduled" ? "warning" : "danger"; }
 export function inspectionTone(status: Inspection["status"]): StatusTone { return status === "Valid" ? "success" : status === "Scheduled" ? "primary" : "danger"; }

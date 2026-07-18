@@ -35,4 +35,8 @@ export const paymentService = {
   createPaymentIntent: (paymentId: string) =>
     apiClient.post<any>(`${ENDPOINTS.RENT_PAYMENTS.TENANT}/${paymentId}/pay`)
       .then((r) => r.data.data),
+
+  generateBills: () =>
+    apiClient.post<any>(`${ENDPOINTS.RENT_PAYMENTS.LANDLORD}/generate-bills`)
+      .then((r) => r.data),
 };

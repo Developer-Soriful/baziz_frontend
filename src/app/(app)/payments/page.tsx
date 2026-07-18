@@ -36,10 +36,23 @@ export default function PaymentsPage() {
 
 function LandlordPayments() {
   const toast = useToast();
+  const qc = useQueryClient();
 
   const { data: list = [], isLoading } = useQuery({
     queryKey: ["payments-all"],
     queryFn: paymentService.getAll,
+  });
+
+  const generateBillsMutation = useMutation({
+    mutationFn: paymentService.generateBills,
+    onSuccess: (res: any) => {
+      toast(res.message || "Monthly bills generated successfully!", "success");
+      qc.invalidateQueries({ queryKey: ["payments-all"] });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || err.message || "Failed to generate bills";
+      toast(msg, "error");
+    }
   });
 
   const [filter, setFilter] = useState<"all" | "Paid" | "Pending" | "Overdue">(
@@ -60,9 +73,17 @@ function LandlordPayments() {
         title="Payments"
         subtitle="Track and manage your payments"
         action={
-          <Button onClick={() => toast("Report generated")}>
-            Export Report
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => generateBillsMutation.mutate()}
+              loading={generateBillsMutation.isPending}
+            >
+              Generate Bills
+            </Button>
+            <Button variant="secondary" onClick={() => toast("Report generated")}>
+              Export Report
+            </Button>
+          </div>
         }
       />
       <div className="mb-5 grid grid-cols-3 gap-4">
@@ -117,10 +138,10 @@ function LandlordPayments() {
                 <Wallet className="h-4 w-4" />
               </span>
               <div className="flex-1">
-                <p className="font-semibold">{p.tenant}</p>
+                <p className="font-semibold">{p.tenant?.name || p.tenant || "Unknown Tenant"}</p>
                 <p className="text-xs text-text-muted">
-                  {p.property} ·{" "}
-                  {new Date(p.date || Date.now()).toLocaleDateString("en-GB")}
+                  {p.property?.name || p.property || "Unknown Property"} ·{" "}
+                  {new Date(p.date || p.dueDate || Date.now()).toLocaleDateString("en-GB")}
                 </p>
               </div>
               <span className="font-bold">
@@ -167,8 +188,20 @@ function TenantPayments() {
 
   const isLoading = isDashboardLoading || isPaymentsLoading;
   const upcomingRent = dashboard?.upcoming || dashboard?.upcomingRent;
+  console.log("Tenant Payments Page - dashboard data:", dashboard);
+  console.log("Tenant Payments Page - upcomingRent:", upcomingRent);
   const formatAmount = (amount?: number, currency = "£") =>
     amount ? `${currency}${amount.toLocaleString()}` : "N/A";
+
+  const getUpcomingDisplayDate = () => {
+    if (!upcomingRent) return "";
+    const isPaid = upcomingRent.status?.toLowerCase() === "paid";
+    const dateObj = new Date(upcomingRent.dueDate);
+    if (isPaid) {
+      dateObj.setMonth(dateObj.getMonth() + 1);
+    }
+    return dateObj.toLocaleDateString("en-GB");
+  };
 
   const handleStartPayment = async () => {
     const paymentId =
@@ -224,25 +257,32 @@ function TenantPayments() {
       >
         <p className="text-sm text-white/80">
           {upcomingRent
-            ? `Monthly Rent · Due ${new Date(upcomingRent.dueDate).toLocaleDateString("en-GB")}`
+            ? upcomingRent.status?.toLowerCase() === "paid"
+              ? "Rent Paid"
+              : `Monthly Rent · Due ${new Date(upcomingRent.dueDate).toLocaleDateString("en-GB")}`
             : "Rent Status"}
         </p>
         <p className="mt-1 text-4xl font-extrabold">
           {upcomingRent ? formatAmount(upcomingRent.amount) : "No Rent Due"}
         </p>
         <p className="mt-1 text-xs text-white/70">
-          {!upcomingRent &&
-            "You are all caught up! There are no pending invoices to pay."}
+          {upcomingRent?.status?.toLowerCase() === "paid"
+            ? "You are all caught up! The rent invoice for this period has been paid."
+            : !upcomingRent && "You are all caught up! There are no pending invoices to pay."}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Button
             onClick={handleStartPayment}
-            disabled={!upcomingRent || isFetchingSecret}
+            disabled={!upcomingRent || upcomingRent.status?.toLowerCase() === "paid" || isFetchingSecret}
             loading={isFetchingSecret}
             variant="secondary"
             className="rounded-xl px-5 py-2.5 text-sm font-bold bg-white text-primary hover:bg-white/95 disabled:opacity-50"
           >
-            {upcomingRent ? "Pay with Card" : "No Due Balance"}
+            {upcomingRent
+              ? upcomingRent.status?.toLowerCase() === "paid"
+                ? "Paid"
+                : "Pay with Card"
+              : "No Due Balance"}
           </Button>
         </div>
       </div>
@@ -266,8 +306,7 @@ function TenantPayments() {
       {upcomingRent && (
         <div className="mt-5 rounded-xl bg-warning/10 p-4">
           <p className="text-sm font-semibold text-warning">
-            Upcoming: Rent Payment · Due{" "}
-            {new Date(upcomingRent.dueDate).toLocaleDateString("en-GB")} ·{" "}
+            Upcoming: Rent Payment · Due {getUpcomingDisplayDate()} ·{" "}
             {formatAmount(upcomingRent.amount)}
           </p>
         </div>
