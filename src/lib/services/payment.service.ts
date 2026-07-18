@@ -29,6 +29,10 @@ export const paymentService = {
       }),
 
   // Create payment intent / charge
-  pay: (data: { amount: number; paymentMethodId: string }) =>
-    apiClient.post(`${ENDPOINTS.RENT_PAYMENTS.TENANT}/charge`, data).then((r) => r.data),
+  pay: (paymentId: string) =>
+    apiClient.post(`${ENDPOINTS.RENT_PAYMENTS.TENANT}/${paymentId}/pay-mock`).then((r) => r.data),
+
+  createPaymentIntent: (paymentId: string) =>
+    apiClient.post<any>(`${ENDPOINTS.RENT_PAYMENTS.TENANT}/${paymentId}/pay`)
+      .then((r) => r.data.data),
 };

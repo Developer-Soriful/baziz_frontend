@@ -57,12 +57,12 @@ function calculateSummary(bills: MonthlyBill[]) {
 
 export default function BillsPage() {
   const { user } = useAuth();
-  
+
   if (user?.role === "tenant") return <TenantBills />;
   return <LandlordBills />;
 }
 
-// ─── Tenant Bills ────────────────────────────────────────────────────────────
+//Tenant Bills
 
 function TenantBills() {
   const toast = useToast();
@@ -99,7 +99,8 @@ function TenantBills() {
         supplierWebsite: "",
       });
     },
-    onError: (err: any) => toast(err?.response?.data?.message || "Failed to add bill", "error"),
+    onError: (err: any) =>
+      toast(err?.response?.data?.message || "Failed to add bill", "error"),
   });
 
   const deleteMutation = useMutation({
@@ -115,15 +116,25 @@ function TenantBills() {
     if (!form.supplier || !form.accountReference || !form.monthlyAmount) {
       return toast("Please fill in required fields", "error");
     }
+
+    const amount = Number(form.monthlyAmount);
+    if (isNaN(amount) || amount <= 0) {
+      return toast("Monthly amount must be a positive number", "error");
+    }
+
+    let website = form.supplierWebsite.trim();
+    if (website && !/^https?:\/\//i.test(website)) {
+      website = `https://${website}`;
+    }
     
     addMutation.mutate({
       billType: form.billType as any,
       supplier: form.supplier,
       accountReference: form.accountReference,
-      monthlyAmount: Number(form.monthlyAmount),
+      monthlyAmount: amount,
       dueDay: Number(form.dueDay),
       supplierPhone: form.supplierPhone || undefined,
-      supplierWebsite: form.supplierWebsite || undefined,
+      supplierWebsite: website || undefined,
     });
   };
 
@@ -162,7 +173,11 @@ function TenantBills() {
       <h3 className="mb-3 font-bold">Your Bills ({bills.length})</h3>
 
       {isLoading ? (
-        <Card><div className="p-8 text-center text-text-muted">Loading bills...</div></Card>
+        <Card>
+          <div className="p-8 text-center text-text-muted">
+            Loading bills...
+          </div>
+        </Card>
       ) : bills.length === 0 ? (
         <Card>
           <EmptyState
@@ -177,7 +192,7 @@ function TenantBills() {
           {bills.map((b) => {
             const Icon = icons[b.billType] ?? FileText;
             const label = billTypeLabels[b.billType] || b.billType;
-            
+
             return (
               <Card key={b._id} className="p-4 relative group">
                 <div className="absolute right-4 top-4 hidden group-hover:block">
@@ -189,7 +204,7 @@ function TenantBills() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" />
@@ -200,11 +215,19 @@ function TenantBills() {
                       {b.supplier} · {b.accountReference}
                     </p>
                   </div>
-                  <Badge tone={billTone(b.paymentStatus === 'paid' ? 'Paid' : b.paymentStatus === 'overdue' ? 'Overdue' : 'Pending')}>
+                  <Badge
+                    tone={billTone(
+                      b.paymentStatus === "paid"
+                        ? "Paid"
+                        : b.paymentStatus === "overdue"
+                          ? "Overdue"
+                          : "Pending",
+                    )}
+                  >
                     {b.paymentStatus}
                   </Badge>
                 </div>
-                
+
                 <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
                   <span className="text-text-muted">
                     Due approx. {formatDueDate(b.dueDay)}
@@ -213,7 +236,7 @@ function TenantBills() {
                     {gbp(b.monthlyAmount, { decimals: true })}
                   </span>
                 </div>
-                
+
                 {(b.supplierPhone || b.supplierWebsite) && (
                   <div className="mt-2 flex flex-wrap gap-4 text-xs text-text-muted">
                     {b.supplierPhone && (
@@ -222,7 +245,16 @@ function TenantBills() {
                       </span>
                     )}
                     {b.supplierWebsite && (
-                      <a href={b.supplierWebsite.startsWith('http') ? b.supplierWebsite : `https://${b.supplierWebsite}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+                      <a
+                        href={
+                          b.supplierWebsite.startsWith("http")
+                            ? b.supplierWebsite
+                            : `https://${b.supplierWebsite}`
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-primary hover:underline"
+                      >
                         <Globe className="h-3.5 w-3.5" /> {b.supplierWebsite}
                       </a>
                     )}
@@ -240,44 +272,90 @@ function TenantBills() {
         title="Add Monthly Bill"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModal(false)}>Cancel</Button>
-            <Button loading={addMutation.isPending} onClick={save}>Save Bill</Button>
+            <Button variant="secondary" onClick={() => setModal(false)}>
+              Cancel
+            </Button>
+            <Button loading={addMutation.isPending} onClick={save}>
+              Save Bill
+            </Button>
           </>
         }
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Field label="Bill Type">
-              <Select value={form.billType} onChange={(e) => setForm({ ...form, billType: e.target.value })}>
+              <Select
+                value={form.billType}
+                onChange={(e) => setForm({ ...form, billType: e.target.value })}
+              >
                 {Object.entries(billTypeLabels).map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
+                  <option key={val} value={val}>
+                    {label}
+                  </option>
                 ))}
               </Select>
             </Field>
             <Field label="Monthly Amount (£)">
-              <Input type="number" min="0" step="0.01" value={form.monthlyAmount} onChange={(e) => setForm({ ...form, monthlyAmount: e.target.value })} placeholder="45.50" />
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.monthlyAmount}
+                onChange={(e) =>
+                  setForm({ ...form, monthlyAmount: e.target.value })
+                }
+                placeholder="45.50"
+              />
             </Field>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Supplier Name">
-              <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="e.g. Thames Water" />
+              <Input
+                value={form.supplier}
+                onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+                placeholder="e.g. Thames Water"
+              />
             </Field>
             <Field label="Account Reference">
-              <Input value={form.accountReference} onChange={(e) => setForm({ ...form, accountReference: e.target.value })} placeholder="e.g. 123456789" />
+              <Input
+                value={form.accountReference}
+                onChange={(e) =>
+                  setForm({ ...form, accountReference: e.target.value })
+                }
+                placeholder="e.g. 123456789"
+              />
             </Field>
           </div>
-          
+
           <Field label="Due Day (1-31)">
-            <Input type="number" min="1" max="31" value={form.dueDay} onChange={(e) => setForm({ ...form, dueDay: e.target.value })} />
+            <Input
+              type="number"
+              min="1"
+              max="31"
+              value={form.dueDay}
+              onChange={(e) => setForm({ ...form, dueDay: e.target.value })}
+            />
           </Field>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Supplier Phone (Optional)">
-              <Input value={form.supplierPhone} onChange={(e) => setForm({ ...form, supplierPhone: e.target.value })} placeholder="0800 123 4567" />
+              <Input
+                value={form.supplierPhone}
+                onChange={(e) =>
+                  setForm({ ...form, supplierPhone: e.target.value })
+                }
+                placeholder="0800 123 4567"
+              />
             </Field>
             <Field label="Supplier Website (Optional)">
-              <Input value={form.supplierWebsite} onChange={(e) => setForm({ ...form, supplierWebsite: e.target.value })} placeholder="www.example.com" />
+              <Input
+                value={form.supplierWebsite}
+                onChange={(e) =>
+                  setForm({ ...form, supplierWebsite: e.target.value })
+                }
+                placeholder="www.example.com"
+              />
             </Field>
           </div>
         </div>
@@ -285,7 +363,6 @@ function TenantBills() {
     </div>
   );
 }
-
 
 // ─── Landlord Bills ──────────────────────────────────────────────────────────
 
@@ -299,8 +376,13 @@ function LandlordBills() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string, status: "paid" | "pending" | "overdue" }) => 
-      billService.updateStatus(id, status),
+    mutationFn: ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: "paid" | "pending" | "overdue";
+    }) => billService.updateStatus(id, status),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["monthly-bills"] });
       toast("Status updated", "success");
@@ -338,7 +420,11 @@ function LandlordBills() {
       <h3 className="mb-3 font-bold">Tenant Bills ({bills.length})</h3>
 
       {isLoading ? (
-        <Card><div className="p-8 text-center text-text-muted">Loading bills...</div></Card>
+        <Card>
+          <div className="p-8 text-center text-text-muted">
+            Loading bills...
+          </div>
+        </Card>
       ) : bills.length === 0 ? (
         <Card>
           <EmptyState
@@ -352,7 +438,7 @@ function LandlordBills() {
           {bills.map((b) => {
             const Icon = icons[b.billType] ?? FileText;
             const label = billTypeLabels[b.billType] || b.billType;
-            
+
             return (
               <Card key={b._id} className="p-4">
                 <div className="flex items-center gap-3">
@@ -365,15 +451,22 @@ function LandlordBills() {
                       {b.supplier} · {b.accountReference}
                     </p>
                   </div>
-                  
+
                   {/* Status Dropdown for Landlord */}
-                  <Select 
-                    value={b.paymentStatus} 
-                    onChange={(e) => statusMutation.mutate({ id: b._id, status: e.target.value as any })}
+                  <Select
+                    value={b.paymentStatus}
+                    onChange={(e) =>
+                      statusMutation.mutate({
+                        id: b._id,
+                        status: e.target.value as any,
+                      })
+                    }
                     className={`h-8 py-0 pl-3 pr-8 text-xs font-semibold rounded-full border-0 ${
-                      b.paymentStatus === 'paid' ? 'bg-success/10 text-success' : 
-                      b.paymentStatus === 'overdue' ? 'bg-danger/10 text-danger' : 
-                      'bg-warning/10 text-warning'
+                      b.paymentStatus === "paid"
+                        ? "bg-success/10 text-success"
+                        : b.paymentStatus === "overdue"
+                          ? "bg-danger/10 text-danger"
+                          : "bg-warning/10 text-warning"
                     }`}
                   >
                     <option value="pending">Pending</option>
@@ -381,7 +474,7 @@ function LandlordBills() {
                     <option value="overdue">Overdue</option>
                   </Select>
                 </div>
-                
+
                 <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
                   <span className="text-text-muted">
                     Due approx. {formatDueDate(b.dueDay)}
@@ -390,7 +483,7 @@ function LandlordBills() {
                     {gbp(b.monthlyAmount, { decimals: true })}
                   </span>
                 </div>
-                
+
                 {(b.supplierPhone || b.supplierWebsite) && (
                   <div className="mt-2 flex flex-wrap gap-4 text-xs text-text-muted">
                     {b.supplierPhone && (
@@ -399,7 +492,16 @@ function LandlordBills() {
                       </span>
                     )}
                     {b.supplierWebsite && (
-                      <a href={b.supplierWebsite.startsWith('http') ? b.supplierWebsite : `https://${b.supplierWebsite}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+                      <a
+                        href={
+                          b.supplierWebsite.startsWith("http")
+                            ? b.supplierWebsite
+                            : `https://${b.supplierWebsite}`
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-primary hover:underline"
+                      >
                         <Globe className="h-3.5 w-3.5" /> {b.supplierWebsite}
                       </a>
                     )}

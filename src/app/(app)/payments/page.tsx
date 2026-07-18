@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageTitle } from "@/components/page-title";
 import { Card, Badge, Button } from "@/components/ui/primitives";
 import { FilterChips, EmptyState } from "@/components/ui/misc";
@@ -9,10 +9,24 @@ import { Field, Input } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth";
 import { paymentTone } from "@/lib/data";
-import { CreditCard, Wallet, CheckCircle2, Clock, AlertTriangle, Smartphone } from "lucide-react";
+import {
+  CreditCard,
+  Wallet,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Smartphone,
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { paymentService, Payment } from "@/lib/services/payment.service";
 import { tenantService } from "@/lib/services/tenant.service";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
+import { StripePaymentForm } from "@/components/payments/StripePaymentForm";
+
+const stripePromise = loadStripe(
+  "pk_test_51SS1nAR3i1UyIGRriTohUDb5vFmb3VZB3LaXqdzxwki8TwgRsaTyk9MGR2iZ83INVeWSvU8C9xnWtu5LD5gxKjke00RFB9oWLs",
+);
 
 export default function PaymentsPage() {
   const { user } = useAuth();
@@ -22,38 +36,96 @@ export default function PaymentsPage() {
 
 function LandlordPayments() {
   const toast = useToast();
-  
+
   const { data: list = [], isLoading } = useQuery({
     queryKey: ["payments-all"],
     queryFn: paymentService.getAll,
   });
 
-  const [filter, setFilter] = useState<"all" | "Paid" | "Pending" | "Overdue">("all");
-  const filtered = list.filter((p: any) => filter === "all" || p.status === filter);
-  const num = (s: string | number) => typeof s === "number" ? s : parseFloat(s.replace(/[£,]/g, ""));
-  const collected = list.filter((p: any) => p.status === "Paid").reduce((s: number, p: any) => s + num(p.amount), 0);
+  const [filter, setFilter] = useState<"all" | "Paid" | "Pending" | "Overdue">(
+    "all",
+  );
+  const filtered = list.filter(
+    (p: any) => filter === "all" || p.status === filter,
+  );
+  const num = (s: string | number) =>
+    typeof s === "number" ? s : parseFloat(s.replace(/[£,]/g, ""));
+  const collected = list
+    .filter((p: any) => p.status === "Paid")
+    .reduce((s: number, p: any) => s + num(p.amount), 0);
 
   return (
     <div className="animate-in">
-      <PageTitle title="Payments" subtitle="Track and manage your payments" action={<Button onClick={() => toast("Report generated")}>Export Report</Button>} />
+      <PageTitle
+        title="Payments"
+        subtitle="Track and manage your payments"
+        action={
+          <Button onClick={() => toast("Report generated")}>
+            Export Report
+          </Button>
+        }
+      />
       <div className="mb-5 grid grid-cols-3 gap-4">
-        <Card className="p-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/12 text-success"><CheckCircle2 className="h-5 w-5" /></span><p className="mt-2 text-xl font-extrabold">£{collected.toLocaleString()}</p><p className="text-xs text-text-muted">Collected</p></Card>
-        <Card className="p-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-warning/12 text-warning"><Clock className="h-5 w-5" /></span><p className="mt-2 text-xl font-extrabold">£0.00</p><p className="text-xs text-text-muted">Pending</p></Card>
-        <Card className="p-4"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-danger/12 text-danger"><AlertTriangle className="h-5 w-5" /></span><p className="mt-2 text-xl font-extrabold">£0.00</p><p className="text-xs text-text-muted">Overdue</p></Card>
+        <Card className="p-4">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/12 text-success">
+            <CheckCircle2 className="h-5 w-5" />
+          </span>
+          <p className="mt-2 text-xl font-extrabold">
+            £{collected.toLocaleString()}
+          </p>
+          <p className="text-xs text-text-muted">Collected</p>
+        </Card>
+        <Card className="p-4">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-warning/12 text-warning">
+            <Clock className="h-5 w-5" />
+          </span>
+          <p className="mt-2 text-xl font-extrabold">£0.00</p>
+          <p className="text-xs text-text-muted">Pending</p>
+        </Card>
+        <Card className="p-4">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-danger/12 text-danger">
+            <AlertTriangle className="h-5 w-5" />
+          </span>
+          <p className="mt-2 text-xl font-extrabold">£0.00</p>
+          <p className="text-xs text-text-muted">Overdue</p>
+        </Card>
       </div>
-      <FilterChips value={filter} onChange={setFilter} chips={[{ value: "all", label: "All" }, { value: "Paid", label: "Paid" }, { value: "Pending", label: "Pending" }, { value: "Overdue", label: "Overdue" }]} />
-      
+      <FilterChips
+        value={filter}
+        onChange={setFilter}
+        chips={[
+          { value: "all", label: "All" },
+          { value: "Paid", label: "Paid" },
+          { value: "Pending", label: "Pending" },
+          { value: "Overdue", label: "Overdue" },
+        ]}
+      />
+
       {isLoading ? (
-        <Card className="mt-4 p-8 text-center text-text-muted">Loading payments...</Card>
+        <Card className="mt-4 p-8 text-center text-text-muted">
+          Loading payments...
+        </Card>
       ) : filtered.length === 0 ? (
-        <Card className="mt-4"><EmptyState icon={Wallet} title="No payments found" /></Card>
+        <Card className="mt-4">
+          <EmptyState icon={Wallet} title="No payments found" />
+        </Card>
       ) : (
         <Card className="mt-4 divide-y divide-border">
           {filtered.map((p: any) => (
             <div key={p.id || p._id} className="flex items-center gap-3 p-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary"><Wallet className="h-4 w-4" /></span>
-              <div className="flex-1"><p className="font-semibold">{p.tenant}</p><p className="text-xs text-text-muted">{p.property} · {new Date(p.date || Date.now()).toLocaleDateString("en-GB")}</p></div>
-              <span className="font-bold">{typeof p.amount === 'number' ? `£${p.amount}` : p.amount}</span>
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Wallet className="h-4 w-4" />
+              </span>
+              <div className="flex-1">
+                <p className="font-semibold">{p.tenant}</p>
+                <p className="text-xs text-text-muted">
+                  {p.property} ·{" "}
+                  {new Date(p.date || Date.now()).toLocaleDateString("en-GB")}
+                </p>
+              </div>
+              <span className="font-bold">
+                {typeof p.amount === "number" ? `£${p.amount}` : p.amount}
+              </span>
               <Badge tone={paymentTone(p.status)}>{p.status}</Badge>
             </div>
           ))}
@@ -67,7 +139,19 @@ function TenantPayments() {
   const toast = useToast();
   const qc = useQueryClient();
   const [pay, setPay] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isFetchingSecret, setIsFetchingSecret] = useState(false);
   const { user } = useAuth();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "true") {
+      toast("Payment completed successfully!", "success");
+      qc.invalidateQueries({ queryKey: ["payments-tenant"] });
+      qc.invalidateQueries({ queryKey: ["tenant-dashboard"] });
+      window.history.replaceState({}, "", "/payments");
+    }
+  }, [toast, qc]);
 
   const { data: dashboard, isLoading: isDashboardLoading } = useQuery({
     queryKey: ["tenant-dashboard"],
@@ -81,118 +165,179 @@ function TenantPayments() {
     enabled: !!user && user.role === "tenant",
   });
 
-  const payMutation = useMutation({
-    mutationFn: (data: any) => paymentService.pay(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payments-tenant"] });
-      qc.invalidateQueries({ queryKey: ["tenant-dashboard"] });
-      toast("Payment successful!");
-      setPay(false);
-    },
-    onError: () => {
-      toast("Payment failed", "error");
-    }
-  });
-
   const isLoading = isDashboardLoading || isPaymentsLoading;
-  const upcomingRent = dashboard?.upcomingRent;
+  const upcomingRent = dashboard?.upcoming || dashboard?.upcomingRent;
   const formatAmount = (amount?: number, currency = "£") =>
     amount ? `${currency}${amount.toLocaleString()}` : "N/A";
+
+  const handleStartPayment = async () => {
+    const paymentId =
+      upcomingRent?.rentPaymentId ||
+      upcomingRent?.paymentId ||
+      upcomingRent?.id ||
+      upcomingRent?._id;
+    if (!paymentId) return;
+
+    setIsFetchingSecret(true);
+    try {
+      const data = await paymentService.createPaymentIntent(paymentId);
+      if (data?.clientSecret) {
+        setClientSecret(data.clientSecret);
+        setPay(true);
+      } else {
+        toast("Failed to generate payment intent", "error");
+      }
+    } catch (err: any) {
+      toast(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Stripe initialization failed",
+        "error",
+      );
+    } finally {
+      setIsFetchingSecret(false);
+    }
+  };
+
+  if (!isDashboardLoading && !dashboard) {
+    return (
+      <div className="animate-in">
+        <PageTitle title="Payments" subtitle="Pay rent and view your history" />
+        <Card className="mt-4 p-8 text-center">
+          <EmptyState
+            icon={AlertTriangle}
+            title="No Active Lease Found"
+            message="You currently do not have an active lease agreement linked to your account. Please contact your landlord to set up your lease."
+          />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-in">
       <PageTitle title="Payments" subtitle="Pay rent and view your history" />
-      
-      <div className="overflow-hidden rounded-2xl p-6 text-white" style={{ background: "linear-gradient(120deg,#008577,#00574b)" }}>
-        <p className="text-sm text-white/80">Monthly Rent · Due {upcomingRent?.dueDate ? new Date(upcomingRent.dueDate).toLocaleDateString("en-GB") : "N/A"}</p>
-        <p className="mt-1 text-4xl font-extrabold">{formatAmount(upcomingRent?.amount)}</p>
+
+      <div
+        className="overflow-hidden rounded-2xl p-6 text-white"
+        style={{ background: "linear-gradient(120deg,#008577,#00574b)" }}
+      >
+        <p className="text-sm text-white/80">
+          {upcomingRent
+            ? `Monthly Rent · Due ${new Date(upcomingRent.dueDate).toLocaleDateString("en-GB")}`
+            : "Rent Status"}
+        </p>
+        <p className="mt-1 text-4xl font-extrabold">
+          {upcomingRent ? formatAmount(upcomingRent.amount) : "No Rent Due"}
+        </p>
+        <p className="mt-1 text-xs text-white/70">
+          {!upcomingRent &&
+            "You are all caught up! There are no pending invoices to pay."}
+        </p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button 
-            onClick={() => setPay(true)} 
-            disabled={!upcomingRent}
-            className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-primary disabled:opacity-50"
+          <Button
+            onClick={handleStartPayment}
+            disabled={!upcomingRent || isFetchingSecret}
+            loading={isFetchingSecret}
+            variant="secondary"
+            className="rounded-xl px-5 py-2.5 text-sm font-bold bg-white text-primary hover:bg-white/95 disabled:opacity-50"
           >
-            Pay with Card
-          </button>
-          <button 
-            onClick={() => toast("Apple Pay not configured", "error")} 
-            disabled={!upcomingRent}
-            className="flex items-center gap-1.5 rounded-xl bg-black px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-          >
-            <Smartphone className="h-4 w-4" /> Apple Pay
-          </button>
+            {upcomingRent ? "Pay with Card" : "No Due Balance"}
+          </Button>
         </div>
       </div>
 
       <Card className="mt-4 flex items-center justify-between p-4">
         <div>
           <p className="font-semibold">Auto-Pay</p>
-          <p className="text-xs text-text-muted">{dashboard?.autoPayEnabled ? "Active" : "Currently disabled"}</p>
+          <p className="text-xs text-text-muted">
+            {dashboard?.autoPay?.enabled ? "Active" : "Currently disabled"}
+          </p>
         </div>
-        <Button size="sm" variant="secondary" onClick={() => toast("Auto-Pay feature coming soon")}>
-          {dashboard?.autoPayEnabled ? "Manage" : "Set up"}
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => toast("Auto-Pay feature coming soon")}
+        >
+          {dashboard?.autoPay?.enabled ? "Manage" : "Set up"}
         </Button>
       </Card>
 
       {upcomingRent && (
         <div className="mt-5 rounded-xl bg-warning/10 p-4">
           <p className="text-sm font-semibold text-warning">
-            Upcoming: Rent Payment · Due {new Date(upcomingRent.dueDate).toLocaleDateString("en-GB")} · {formatAmount(upcomingRent.amount)}
+            Upcoming: Rent Payment · Due{" "}
+            {new Date(upcomingRent.dueDate).toLocaleDateString("en-GB")} ·{" "}
+            {formatAmount(upcomingRent.amount)}
           </p>
         </div>
       )}
 
       <h3 className="mb-3 mt-6 font-bold">Payment History</h3>
       {isLoading ? (
-        <Card className="p-8 text-center text-text-muted">Loading history...</Card>
+        <Card className="p-8 text-center text-text-muted">
+          Loading history...
+        </Card>
       ) : tenantPayments.length === 0 ? (
-        <Card><EmptyState icon={Wallet} title="No history found" /></Card>
+        <Card>
+          <EmptyState icon={Wallet} title="No history found" />
+        </Card>
       ) : (
         <Card className="divide-y divide-border">
           {tenantPayments.map((p: any) => (
             <div key={p.id || p._id} className="flex items-center gap-3 p-4">
-              <CheckCircle2 className={`h-5 w-5 ${p.status === 'Paid' ? 'text-success' : 'text-warning'}`} />
+              <CheckCircle2
+                className={`h-5 w-5 ${p.status === "Paid" ? "text-success" : "text-warning"}`}
+              />
               <div className="flex-1">
                 <p className="font-semibold">{p.title || "Rent Payment"}</p>
-                <p className="text-xs text-text-muted">{p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-GB") : "Pending"}</p>
+                <p className="text-xs text-text-muted">
+                  {p.paidAt
+                    ? new Date(p.paidAt).toLocaleDateString("en-GB")
+                    : "Pending"}
+                </p>
               </div>
-              <span className="font-bold">{formatAmount(p.amount, p.currency)}</span>
+              <span className="font-bold">
+                {formatAmount(p.amount, p.currency)}
+              </span>
               <Badge tone={paymentTone(p.status)}>{p.status}</Badge>
             </div>
           ))}
         </Card>
       )}
 
-      <Modal 
-        open={pay} 
-        onClose={() => setPay(false)} 
-        title="Card Payment" 
-        subtitle={`Amount Due ${formatAmount(upcomingRent?.amount)}`} 
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setPay(false)}>Cancel</Button>
-            <Button 
-              onClick={() => payMutation.mutate({ 
-                paymentId: upcomingRent?.paymentId,
-                amount: upcomingRent?.amount, 
-                paymentMethodId: "pm_card_visa" 
-              })} 
-              loading={payMutation.isPending}
-            >
-              Pay {formatAmount(upcomingRent?.amount)}
-            </Button>
-          </>
-        }
+      <Modal
+        open={pay}
+        onClose={() => {
+          setPay(false);
+          setClientSecret(null);
+        }}
+        title="Card Payment"
+        subtitle={`Amount Due ${formatAmount(upcomingRent?.amount)}`}
       >
-        <div className="space-y-4">
-          <Field label="Card Number"><Input placeholder="4242 4242 4242 4242" /></Field>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="MM/YY"><Input placeholder="12/28" /></Field>
-            <Field label="CVC"><Input placeholder="123" /></Field>
-            <Field label="ZIP"><Input placeholder="SW1A" /></Field>
+        {clientSecret ? (
+          <Elements stripe={stripePromise} options={{ clientSecret }}>
+            <StripePaymentForm
+              clientSecret={clientSecret}
+              amountLabel={formatAmount(upcomingRent?.amount)}
+              onCancel={() => {
+                setPay(false);
+                setClientSecret(null);
+              }}
+              onSuccess={() => {
+                qc.invalidateQueries({ queryKey: ["payments-tenant"] });
+                qc.invalidateQueries({ queryKey: ["tenant-dashboard"] });
+                toast("Payment successful!", "success");
+                setPay(false);
+                setClientSecret(null);
+              }}
+            />
+          </Elements>
+        ) : (
+          <div className="p-8 text-center text-text-muted">
+            Loading Stripe elements...
           </div>
-          <p className="text-center text-xs text-text-faint">🔒 Secured by Stripe</p>
-        </div>
+        )}
       </Modal>
     </div>
   );

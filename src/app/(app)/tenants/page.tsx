@@ -15,28 +15,46 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantService } from "@/lib/services/tenant.service";
 import { chatService } from "@/lib/services/chat.service";
 import { propertyService } from "@/lib/services/property.service";
+import { useAuth } from "@/lib/auth";
+import { useEffect } from "react";
 
 export default function TenantsPage() {
   const toast = useToast();
   const router = useRouter();
   const qc = useQueryClient();
 
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user && user.role !== "landlord") {
+      router.replace("/home");
+    }
+  }, [user, router]);
+
   const { data: list = [], isLoading } = useQuery({
     queryKey: ["tenants"],
     queryFn: tenantService.getAll,
+    enabled: !!user && user.role === "landlord",
   });
 
   const { data: properties = [] } = useQuery({
     queryKey: ["properties"],
     queryFn: propertyService.getAll,
+    enabled: !!user && user.role === "landlord",
   });
+
+  const [invitedLink, setInvitedLink] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: tenantService.create,
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["tenants"] });
       toast("Tenant invitation sent", "success");
       setModal(false);
+      const leaseId = res.data?.leaseId || res.leaseId;
+      if (leaseId) {
+        setInvitedLink(`${window.location.origin}/tenant/signup?leaseId=${leaseId}`);
+      }
     },
     onError: (err: any) => {
       const msg = err.response?.data?.message || err.response?.data?.error?.message || "Failed to invite tenant";
@@ -77,7 +95,17 @@ export default function TenantsPage() {
     const name = (t.tenantFullName || t.name || "").toLowerCase();
     const property = (t.propertyId?.propertyName || t.property || "").toLowerCase();
     const matchesQuery = !q || name.includes(q.toLowerCase()) || property.includes(q.toLowerCase());
-    const matchesFilter = filter === "all" || t.status === filter;
+    
+    const tStatus = (t.status || "").toLowerCase();
+    let matchesFilter = filter === "all";
+    if (filter === "Active") {
+      matchesFilter = tStatus === "active" || tStatus === "accepted";
+    } else if (filter === "Expiring") {
+      matchesFilter = tStatus === "expiring";
+    } else if (filter === "Overdue") {
+      matchesFilter = tStatus === "overdue";
+    }
+    
     return matchesQuery && matchesFilter;
   });
 
@@ -108,6 +136,8 @@ export default function TenantsPage() {
 
   const selectedProperty = properties.find((p: any) => (p.id || p._id) === form.propertyId);
   const units = selectedProperty?.units || [];
+
+  if (!user || user.role !== "landlord") return null;
 
   return (
     <div className="animate-in">
@@ -311,6 +341,40 @@ export default function TenantsPage() {
               />
             </Field>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!invitedLink}
+        onClose={() => setInvitedLink(null)}
+        title="Tenant Invitation Created"
+        footer={
+          <Button onClick={() => setInvitedLink(null)}>
+            Close
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-muted">
+            The tenant invitation was created successfully! Share the registration link below with your tenant so they can sign up under this lease agreement:
+          </p>
+          <div className="rounded-xl bg-primary/5 p-3 border border-primary/10">
+            <code className="text-xs break-all block text-primary select-all">
+              {invitedLink}
+            </code>
+          </div>
+          <Button
+            variant="secondary"
+            className="w-full flex items-center justify-center gap-2"
+            onClick={() => {
+              if (invitedLink) {
+                navigator.clipboard.writeText(invitedLink);
+                toast("Invitation link copied to clipboard!", "success");
+              }
+            }}
+          >
+            Copy Link
+          </Button>
         </div>
       </Modal>
     </div>
