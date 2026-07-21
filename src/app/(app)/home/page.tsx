@@ -37,7 +37,6 @@ import {
   Home as HomeIcon,
   Calendar,
   MapPin,
-  LogOut,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -73,17 +72,23 @@ function LandlordHome() {
     const items = taskResponse.tasks
       .filter((t: any) => t.status !== "completed")
       .map((t: any) => {
-        const isToday = new Date(t.dueDate).toDateString() === new Date().toDateString();
-        const timeStr = isToday 
-          ? "Today" 
+        const isToday =
+          new Date(t.dueDate).toDateString() === new Date().toDateString();
+        const timeStr = isToday
+          ? "Today"
           : new Date(t.dueDate).toLocaleDateString("en-GB");
 
         return {
           title: t.title,
           sub: t.property?.propertyName || "General Task",
           time: timeStr,
-          tone: t.priority === "high" ? "danger" as const : t.priority === "medium" ? "warning" as const : "primary" as const,
-          dueDate: new Date(t.dueDate)
+          tone:
+            t.priority === "high"
+              ? ("danger" as const)
+              : t.priority === "medium"
+                ? ("warning" as const)
+                : ("primary" as const),
+          dueDate: new Date(t.dueDate),
         };
       });
 
@@ -101,13 +106,6 @@ function LandlordHome() {
           <p className="text-sm text-text-muted">Good day,</p>
           <h1 className="text-2xl font-extrabold">{user?.name} 👋</h1>
         </div>
-        <Link
-          href="/notifications"
-          className="relative rounded-xl border border-border bg-surface p-3"
-        >
-          <Bell className="h-5 w-5 text-text-muted" />
-          <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-danger" />
-        </Link>
       </div>
 
       {/* Weather-style hero */}
@@ -198,14 +196,14 @@ function LandlordHome() {
                       s.tone === "warning"
                         ? "#ff950022"
                         : s.tone === "danger"
-                        ? "#ff3b3022"
-                        : "#007aff22",
+                          ? "#ff3b3022"
+                          : "#007aff22",
                     color:
                       s.tone === "warning"
                         ? "#ff9500"
                         : s.tone === "danger"
-                        ? "#ff3b30"
-                        : "#007aff",
+                          ? "#ff3b30"
+                          : "#007aff",
                   }}
                 >
                   {s.tone === "warning" ? (
@@ -300,8 +298,7 @@ function LandlordHome() {
 }
 
 function TenantHome() {
-  const { logout, user } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
 
   const { data: myLease, isLoading: isLeaseLoading } = useQuery({
     queryKey: ["tenant-lease"],
@@ -489,17 +486,6 @@ function TenantHome() {
           )}
         </div>
       </Card>
-
-      {/* Logout */}
-      <button
-        onClick={() => {
-          logout();
-          router.push("/login");
-        }}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-danger/30 py-3.5 font-bold text-danger transition hover:bg-danger/8"
-      >
-        <LogOut className="h-5 w-5" /> Logout
-      </button>
     </div>
   );
 }

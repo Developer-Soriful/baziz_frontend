@@ -305,8 +305,8 @@ function TenantPayments() {
           {upcomingRent && upcomingRent.status?.toLowerCase() !== "paid"
             ? formatAmount(upcomingRent.amount)
             : dashboard?.currentRent?.amount
-            ? formatAmount(dashboard.currentRent.amount)
-            : "No Rent Due"}
+              ? formatAmount(dashboard.currentRent.amount)
+              : "No Rent Due"}
         </p>
         <p className="mt-1 text-xs text-white/70">
           {upcomingRent?.status?.toLowerCase() === "paid"
@@ -334,22 +334,6 @@ function TenantPayments() {
           </Button>
         </div>
       </div>
-
-      <Card className="mt-4 flex items-center justify-between p-4">
-        <div>
-          <p className="font-semibold">Auto-Pay</p>
-          <p className="text-xs text-text-muted">
-            {dashboard?.autoPay?.enabled ? "Active" : "Currently disabled"}
-          </p>
-        </div>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => toast("Auto-Pay feature coming soon")}
-        >
-          {dashboard?.autoPay?.enabled ? "Manage" : "Set up"}
-        </Button>
-      </Card>
 
       {upcomingRent && (
         <div className="mt-5 rounded-xl bg-warning/10 p-4">

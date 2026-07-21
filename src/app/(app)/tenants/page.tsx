@@ -54,17 +54,23 @@ export default function TenantsPage() {
       setModal(false);
       const leaseId = res.data?.leaseId || res.leaseId;
       if (leaseId) {
-        setInvitedLink(`${window.location.origin}/tenant/signup?leaseId=${leaseId}`);
+        setInvitedLink(
+          `${window.location.origin}/tenant/signup?leaseId=${leaseId}`,
+        );
       }
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || err.response?.data?.error?.message || "Failed to invite tenant";
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error?.message ||
+        "Failed to invite tenant";
       toast(msg, "error");
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (args: { id: string; data: any }) => tenantService.update(args.id, args.data),
+    mutationFn: (args: { id: string; data: any }) =>
+      tenantService.update(args.id, args.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tenants"] });
       toast("Tenant details updated successfully", "success");
@@ -74,7 +80,7 @@ export default function TenantsPage() {
     onError: (err: any) => {
       const msg = err.response?.data?.message || "Failed to update tenant";
       toast(msg, "error");
-    }
+    },
   });
 
   const deleteMutation = useMutation({
@@ -86,7 +92,7 @@ export default function TenantsPage() {
     onError: (err: any) => {
       const msg = err.response?.data?.message || "Failed to delete tenant";
       toast(msg, "error");
-    }
+    },
   });
 
   const startChatMutation = useMutation({
@@ -114,15 +120,24 @@ export default function TenantsPage() {
     paymentFrequency: "monthly",
     paymentDueDay: "1",
     leaseStartDate: new Date().toISOString().split("T")[0],
-    leaseEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0],
+    leaseEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+      .toISOString()
+      .split("T")[0],
     numberOfParkingSpots: "0",
   });
 
   const filtered = list.filter((t: any) => {
     const name = (t.tenantFullName || t.name || "").toLowerCase();
-    const property = (t.propertyId?.propertyName || t.property || "").toLowerCase();
-    const matchesQuery = !q || name.includes(q.toLowerCase()) || property.includes(q.toLowerCase());
-    
+    const property = (
+      t.propertyId?.propertyName ||
+      t.property ||
+      ""
+    ).toLowerCase();
+    const matchesQuery =
+      !q ||
+      name.includes(q.toLowerCase()) ||
+      property.includes(q.toLowerCase());
+
     const tStatus = (t.status || "").toLowerCase();
     let matchesFilter = filter === "all";
     if (filter === "Active") {
@@ -132,7 +147,7 @@ export default function TenantsPage() {
     } else if (filter === "Overdue") {
       matchesFilter = tStatus === "overdue";
     }
-    
+
     return matchesQuery && matchesFilter;
   });
   const startEdit = (t: any) => {
@@ -147,20 +162,31 @@ export default function TenantsPage() {
       securityDeposit: String(t.securityDeposit || ""),
       paymentFrequency: t.paymentFrequency || "monthly",
       paymentDueDay: String(t.paymentDueDay || "1"),
-      leaseStartDate: t.leaseStartDate ? new Date(t.leaseStartDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-      leaseEndDate: t.leaseEndDate ? new Date(t.leaseEndDate).toISOString().split("T")[0] : new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0],
+      leaseStartDate: t.leaseStartDate
+        ? new Date(t.leaseStartDate).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
+      leaseEndDate: t.leaseEndDate
+        ? new Date(t.leaseEndDate).toISOString().split("T")[0]
+        : new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+            .toISOString()
+            .split("T")[0],
       numberOfParkingSpots: String(t.numberOfParkingSpots || "0"),
     });
     setModal(true);
   };
 
   const startDelete = (leaseId: string) => {
-    if (confirm("Are you sure you want to delete this tenant and terminate their lease agreement? This action cannot be undone.")) {
+    if (
+      confirm(
+        "Are you sure you want to delete this tenant and terminate their lease agreement? This action cannot be undone.",
+      )
+    ) {
       deleteMutation.mutate(leaseId);
     }
   };
   const save = () => {
-    if (!form.tenantFullName.trim()) return toast("Enter tenant full name", "error");
+    if (!form.tenantFullName.trim())
+      return toast("Enter tenant full name", "error");
     if (!form.tenantEmail.trim()) return toast("Enter tenant email", "error");
     if (!form.tenantPhone.trim()) return toast("Enter tenant phone", "error");
     if (!form.propertyId) return toast("Select a property", "error");
@@ -190,7 +216,9 @@ export default function TenantsPage() {
     }
   };
 
-  const selectedProperty = properties.find((p: any) => (p.id || p._id) === form.propertyId);
+  const selectedProperty = properties.find(
+    (p: any) => (p.id || p._id) === form.propertyId,
+  );
   const units = selectedProperty?.units || [];
 
   if (!user || user.role !== "landlord") return null;
@@ -201,24 +229,30 @@ export default function TenantsPage() {
         title="Current Tenants"
         subtitle="View and manage all tenants"
         action={
-          <Button onClick={() => {
-            setEditingLeaseId(null);
-            setForm({
-              tenantFullName: "",
-              tenantEmail: "",
-              tenantPhone: "",
-              propertyId: "",
-              unitId: "",
-              rentAmount: "",
-              securityDeposit: "",
-              paymentFrequency: "monthly",
-              paymentDueDay: "1",
-              leaseStartDate: new Date().toISOString().split("T")[0],
-              leaseEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split("T")[0],
-              numberOfParkingSpots: "0",
-            });
-            setModal(true);
-          }}>
+          <Button
+            onClick={() => {
+              setEditingLeaseId(null);
+              setForm({
+                tenantFullName: "",
+                tenantEmail: "",
+                tenantPhone: "",
+                propertyId: "",
+                unitId: "",
+                rentAmount: "",
+                securityDeposit: "",
+                paymentFrequency: "monthly",
+                paymentDueDay: "1",
+                leaseStartDate: new Date().toISOString().split("T")[0],
+                leaseEndDate: new Date(
+                  new Date().setFullYear(new Date().getFullYear() + 1),
+                )
+                  .toISOString()
+                  .split("T")[0],
+                numberOfParkingSpots: "0",
+              });
+              setModal(true);
+            }}
+          >
             <UserPlus className="h-4 w-4" /> Add Tenant
           </Button>
         }
@@ -252,60 +286,134 @@ export default function TenantsPage() {
           <EmptyState icon={Users} title="No tenants found" />
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {filtered.map((t: any) => {
-            const name = t.tenantFullName || t.name || "Tenant";
-            const propertyName = t.propertyId?.propertyName || t.property || "Property";
-            const rent = t.rentAmount !== undefined ? `£${t.rentAmount.toLocaleString()}` : t.rent;
-            const status = t.status || "Active";
-            const tenantId = t.tenantId?._id || t.tenantId;
-            const propertyId = t.propertyId?._id || t.propertyId;
-            const hasIds = !!tenantId && !!propertyId;
+        <Card className="overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="border-b border-border bg-surface-subtle/50 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  <th className="px-5 py-3.5">Tenant Details</th>
+                  <th className="px-5 py-3.5">Property & Unit</th>
+                  <th className="px-5 py-3.5">Rent & Payment</th>
+                  <th className="px-5 py-3.5">Lease Period</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60 text-sm">
+                {filtered.map((t: any) => {
+                  const leaseId = t.id || t._id;
+                  const name = t.tenantFullName || t.name || "Tenant";
+                  const email = t.tenantEmail || t.email || "";
+                  const phone = t.tenantPhone || t.phone || "";
+                  const propertyName =
+                    t.propertyId?.propertyName || t.property || "Property";
+                  const unitName =
+                    t.unitId?.unitNumber || t.unitNumber || t.unit || "Unit";
+                  const rent =
+                    t.rentAmount !== undefined
+                      ? `£${t.rentAmount.toLocaleString()}`
+                      : t.rent || "—";
+                  const frequency = t.paymentFrequency || "monthly";
+                  const startDate = t.leaseStartDate
+                    ? new Date(t.leaseStartDate).toLocaleDateString("en-GB")
+                    : "—";
+                  const endDate = t.leaseEndDate
+                    ? new Date(t.leaseEndDate).toLocaleDateString("en-GB")
+                    : "—";
+                  const status = t.status || "Active";
+                  const tenantId = t.tenantId?._id || t.tenantId;
+                  const propertyId = t.propertyId?._id || t.propertyId;
+                  const hasIds = !!tenantId && !!propertyId;
 
-            return (
-              <Card key={t.id || t._id} className="flex items-center gap-3 p-4">
-                <Avatar name={name} color={colorFromString(name)} size={46} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold">{name}</p>
-                  <p className="truncate text-xs text-text-muted">{propertyName}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="font-bold">{rent}</p>
-                    <Badge tone={tenantTone(status)}>{status}</Badge>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {hasIds && (
-                      <button
-                        onClick={() => startChatMutation.mutate({ propertyId, tenantId })}
-                        disabled={startChatMutation.isPending}
-                        className="rounded-xl bg-primary/10 p-2.5 text-primary hover:bg-primary/20 transition disabled:opacity-50"
-                        title="Send Message"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => startEdit(t)}
-                      className="rounded-xl bg-info/10 p-2.5 text-info hover:bg-info/20 transition"
-                      title="Edit Tenant"
+                  return (
+                    <tr
+                      key={leaseId}
+                      onClick={() => router.push(`/tenants/${leaseId}`)}
+                      className="group cursor-pointer hover:bg-surface-subtle/80 transition-colors"
                     >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => startDelete(t.id || t._id)}
-                      disabled={deleteMutation.isPending}
-                      className="rounded-xl bg-danger/10 p-2.5 text-danger hover:bg-danger/20 transition disabled:opacity-50"
-                      title="Delete Tenant"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            name={name}
+                            color={colorFromString(name)}
+                            size={42}
+                          />
+                          <div className="min-w-0">
+                            <p className="font-bold text-text-main group-hover:text-primary transition-colors">
+                              {name}
+                            </p>
+                            <p className="text-xs text-text-muted truncate">
+                              {email || phone || "No contact info"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="font-medium text-text-main">
+                          {propertyName}
+                        </p>
+                        <p className="text-xs text-text-muted">
+                          Unit: {unitName}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="font-bold text-text-main">{rent}</p>
+                        <p className="text-xs text-text-muted capitalize">
+                          {frequency}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <p className="text-xs font-medium text-text-main">
+                          {startDate} - {endDate}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <Badge tone={tenantTone(status)}>{status}</Badge>
+                      </td>
+                      <td className="px-5 py-4 text-right whitespace-nowrap">
+                        <div
+                          className="flex items-center justify-end gap-1.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {hasIds && (
+                            <button
+                              onClick={() =>
+                                startChatMutation.mutate({
+                                  propertyId,
+                                  tenantId,
+                                })
+                              }
+                              disabled={startChatMutation.isPending}
+                              className="rounded-xl bg-primary/10 p-2 text-primary hover:bg-primary/20 transition disabled:opacity-50"
+                              title="Send Message"
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => startEdit(t)}
+                            className="rounded-xl bg-info/10 p-2 text-info hover:bg-info/20 transition"
+                            title="Edit Tenant"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => startDelete(leaseId)}
+                            disabled={deleteMutation.isPending}
+                            className="rounded-xl bg-danger/10 p-2 text-danger hover:bg-danger/20 transition disabled:opacity-50"
+                            title="Delete Tenant"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
       <Modal
         open={modal}
@@ -316,7 +424,14 @@ export default function TenantsPage() {
             <Button variant="secondary" onClick={() => setModal(false)}>
               Cancel
             </Button>
-            <Button onClick={save} loading={editingLeaseId ? updateMutation.isPending : createMutation.isPending}>
+            <Button
+              onClick={save}
+              loading={
+                editingLeaseId
+                  ? updateMutation.isPending
+                  : createMutation.isPending
+              }
+            >
               {editingLeaseId ? "Save Changes" : "Send Invitation"}
             </Button>
           </>
@@ -326,7 +441,9 @@ export default function TenantsPage() {
           <Field label="Tenant Full Name">
             <Input
               value={form.tenantFullName}
-              onChange={(e) => setForm({ ...form, tenantFullName: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, tenantFullName: e.target.value })
+              }
               placeholder="Jane Doe"
             />
           </Field>
@@ -334,14 +451,18 @@ export default function TenantsPage() {
             <Field label="Email">
               <Input
                 value={form.tenantEmail}
-                onChange={(e) => setForm({ ...form, tenantEmail: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, tenantEmail: e.target.value })
+                }
                 placeholder="jane@example.com"
               />
             </Field>
             <Field label="Phone">
               <Input
                 value={form.tenantPhone}
-                onChange={(e) => setForm({ ...form, tenantPhone: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, tenantPhone: e.target.value })
+                }
                 placeholder="+44 7700 900000"
               />
             </Field>
@@ -350,7 +471,9 @@ export default function TenantsPage() {
             <Field label="Select Property">
               <Select
                 value={form.propertyId}
-                onChange={(e) => setForm({ ...form, propertyId: e.target.value, unitId: "" })}
+                onChange={(e) =>
+                  setForm({ ...form, propertyId: e.target.value, unitId: "" })
+                }
               >
                 <option value="">-- Select Property --</option>
                 {properties.map((p: any) => (
@@ -380,7 +503,9 @@ export default function TenantsPage() {
               <Input
                 type="number"
                 value={form.rentAmount}
-                onChange={(e) => setForm({ ...form, rentAmount: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, rentAmount: e.target.value })
+                }
                 placeholder="1850"
               />
             </Field>
@@ -388,7 +513,9 @@ export default function TenantsPage() {
               <Input
                 type="number"
                 value={form.securityDeposit}
-                onChange={(e) => setForm({ ...form, securityDeposit: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, securityDeposit: e.target.value })
+                }
                 placeholder="1850"
               />
             </Field>
@@ -397,7 +524,9 @@ export default function TenantsPage() {
             <Field label="Payment Frequency">
               <Select
                 value={form.paymentFrequency}
-                onChange={(e) => setForm({ ...form, paymentFrequency: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, paymentFrequency: e.target.value })
+                }
               >
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>
@@ -408,7 +537,9 @@ export default function TenantsPage() {
               <Input
                 type="number"
                 value={form.paymentDueDay}
-                onChange={(e) => setForm({ ...form, paymentDueDay: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, paymentDueDay: e.target.value })
+                }
                 placeholder="1"
                 min="1"
                 max="31"
@@ -420,14 +551,18 @@ export default function TenantsPage() {
               <Input
                 type="date"
                 value={form.leaseStartDate}
-                onChange={(e) => setForm({ ...form, leaseStartDate: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, leaseStartDate: e.target.value })
+                }
               />
             </Field>
             <Field label="Lease End Date">
               <Input
                 type="date"
                 value={form.leaseEndDate}
-                onChange={(e) => setForm({ ...form, leaseEndDate: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, leaseEndDate: e.target.value })
+                }
               />
             </Field>
           </div>
@@ -438,15 +573,13 @@ export default function TenantsPage() {
         open={!!invitedLink}
         onClose={() => setInvitedLink(null)}
         title="Tenant Invitation Created"
-        footer={
-          <Button onClick={() => setInvitedLink(null)}>
-            Close
-          </Button>
-        }
+        footer={<Button onClick={() => setInvitedLink(null)}>Close</Button>}
       >
         <div className="space-y-4">
           <p className="text-sm text-text-muted">
-            The tenant invitation was created successfully! Share the registration link below with your tenant so they can sign up under this lease agreement:
+            The tenant invitation was created successfully! Share the
+            registration link below with your tenant so they can sign up under
+            this lease agreement:
           </p>
           <div className="rounded-xl bg-primary/5 p-3 border border-primary/10">
             <code className="text-xs break-all block text-primary select-all">
