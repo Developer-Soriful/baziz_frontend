@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Card, Badge, Progress } from "@/components/ui/primitives";
 import { useQuery } from "@tanstack/react-query";
@@ -13,7 +12,6 @@ import { RevenueChart } from "@/components/charts";
 import { MapPanel } from "@/components/map-panel";
 import { useMemo } from "react";
 import { propertyService } from "@/lib/services/property.service";
-import { EntityYieldCard } from "@/components/dashboard/EntityYieldCard";
 import {
   portfolioStats,
   revenueByMonth,
@@ -24,7 +22,6 @@ import {
   propertyPins,
 } from "@/lib/data";
 import {
-  Bell,
   Wallet,
   CheckCircle2,
   ArrowUpRight,
@@ -107,24 +104,6 @@ function LandlordHome() {
           <h1 className="text-2xl font-extrabold">{user?.name} 👋</h1>
         </div>
       </div>
-
-      {/* Weather-style hero */}
-      <div
-        className="overflow-hidden rounded-2xl p-6 text-white"
-        style={{ background: "linear-gradient(120deg,#2563eb,#1d4ed8)" }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-white/80">London, UK</p>
-            <p className="text-4xl font-extrabold">18°C</p>
-            <p className="mt-1 text-sm text-white/80">
-              Partly Cloudy · Perfect for property viewings
-            </p>
-          </div>
-          <HomeIcon className="h-16 w-16 text-white/30" />
-        </div>
-      </div>
-
       {/* Portfolio overview */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {realPortfolio.map((s: any) => (
@@ -179,7 +158,6 @@ function LandlordHome() {
               ))}
             </div>
           </Card>
-          <EntityYieldCard properties={properties} />
         </div>
       </div>
 
