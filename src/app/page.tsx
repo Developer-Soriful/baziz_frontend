@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import {
   Building2, Home, Wallet, Wrench, FileText, MessageSquare, ShieldCheck, BarChart3,
@@ -24,6 +25,7 @@ const faqs = [
 ];
 
 export default function Landing() {
+  const { user } = useAuth();
   const [menu, setMenu] = useState(false);
   const [faq, setFaq] = useState<number | null>(0);
 
@@ -43,8 +45,16 @@ export default function Landing() {
             <a href="#faq" className="transition hover:text-text">FAQ</a>
           </nav>
           <div className="hidden items-center gap-2 md:flex">
-            <Link href="/login" className="rounded-xl px-4 py-2 text-sm font-semibold text-text-muted transition hover:bg-surface-2 hover:text-text">Sign in</Link>
-            <Link href="/signup" className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-glow)] transition hover:bg-primary-600">Get started free</Link>
+            {user ? (
+              <Link href="/home" className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-glow)] transition hover:bg-primary-600">
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="rounded-xl px-4 py-2 text-sm font-semibold text-text-muted transition hover:bg-surface-2 hover:text-text">Sign in</Link>
+                <Link href="/signup" className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white shadow-[var(--shadow-glow)] transition hover:bg-primary-600">Get started free</Link>
+              </>
+            )}
           </div>
           <button className="rounded-lg p-2 md:hidden" onClick={() => setMenu((v) => !v)} aria-label="Menu">{menu ? <X /> : <Menu />}</button>
         </div>
@@ -52,8 +62,16 @@ export default function Landing() {
           <div className="border-t border-border bg-surface px-4 py-4 md:hidden">
             <div className="flex flex-col gap-1 text-sm font-semibold">
               {[["Features", "#features"], ["How it works", "#how"], ["Pricing", "#pricing"], ["FAQ", "#faq"]].map(([l, h]) => <a key={h} href={h} onClick={() => setMenu(false)} className="rounded-lg px-2 py-2.5 hover:bg-surface-2">{l}</a>)}
-              <Link href="/login" className="rounded-lg px-2 py-2.5 hover:bg-surface-2">Sign in</Link>
-              <Link href="/signup" className="mt-1 rounded-xl bg-primary px-4 py-2.5 text-center text-white">Get started free</Link>
+              {user ? (
+                <Link href="/home" onClick={() => setMenu(false)} className="mt-1 rounded-xl bg-primary px-4 py-2.5 text-center text-white">
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link href="/login" onClick={() => setMenu(false)} className="rounded-lg px-2 py-2.5 hover:bg-surface-2">Sign in</Link>
+                  <Link href="/signup" onClick={() => setMenu(false)} className="mt-1 rounded-xl bg-primary px-4 py-2.5 text-center text-white">Get started free</Link>
+                </>
+              )}
             </div>
           </div>
         )}

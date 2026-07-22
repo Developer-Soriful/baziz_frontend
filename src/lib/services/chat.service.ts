@@ -9,6 +9,8 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   read: boolean;
+  deletedAt?: string | null;
+  reactions?: Array<{ userId: string; type: string }>;
 }
 
 export interface ChatPreview {
@@ -114,9 +116,11 @@ export const chatService = {
         _id: m.id,
         senderId: m.senderId,
         receiverId: m.conversationId,
-        content: m.content?.text || "",
+        content: m.content?.text || (m.deletedAt ? "This message was deleted." : ""),
         timestamp: m.sentAt,
-        read: m.readBy?.length > 0,
+        read: m.readBy?.length > 0 || m.status === "read",
+        deletedAt: m.deletedAt,
+        reactions: m.reactions || [],
       })) as ChatMessage[];
     }),
 
@@ -145,6 +149,8 @@ export const chatService = {
           content: m.content?.text || "",
           timestamp: m.sentAt,
           read: false,
+          deletedAt: m.deletedAt || null,
+          reactions: m.reactions || [],
         } as ChatMessage;
       });
   },
@@ -158,4 +164,16 @@ export const chatService = {
     apiClient
       .get<any>(`${ENDPOINTS.CHAT.BASE}/tenant/default-conversation`)
       .then((r) => r.data?.data?.conversation || r.data?.conversation || r.data),
+
+  addReaction: (messageId: string, type: string) =>
+    apiClient.post<any>(`/chat/messages/${messageId}/reactions`, { type }).then((r) => r.data?.data?.message || r.data?.message),
+
+  removeReaction: (messageId: string) =>
+    apiClient.delete<any>(`/chat/messages/${messageId}/reactions`).then((r) => r.data?.data?.message || r.data?.message),
+
+  deleteMessage: (messageId: string, scope: "me" | "everyone") =>
+    apiClient.delete<any>(`/chat/messages/${messageId}?scope=${scope}`).then((r) => r.data),
+
+  markAsRead: (chatId: string, lastReadMessageId: string) =>
+    apiClient.post<any>(`/chat/conversations/${chatId}/read`, { lastReadMessageId }).then((r) => r.data),
 };
