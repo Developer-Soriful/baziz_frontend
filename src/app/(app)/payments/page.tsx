@@ -7,14 +7,7 @@ import { FilterChips, EmptyState } from "@/components/ui/misc";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth";
 import { paymentTone } from "@/lib/data";
-import {
-  CreditCard,
-  Wallet,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  Smartphone,
-} from "lucide-react";
+import { Wallet, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { paymentService } from "@/lib/services/payment.service";
 import { tenantService } from "@/lib/services/tenant.service";
