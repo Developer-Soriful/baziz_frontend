@@ -21,10 +21,12 @@ export default function CheckoutPage() {
   const router = useRouter();
   const toast = useToast();
   const qc = useQueryClient();
-  
+
   const paymentId = params.paymentId as string;
   const amountStr = searchParams.get("amount");
-  const amountLabel = amountStr ? `£${parseFloat(amountStr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "your balance";
+  const amountLabel = amountStr
+    ? `£${parseFloat(amountStr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "your balance";
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,10 @@ export default function CheckoutPage() {
         }
       })
       .catch((err) => {
-        const msg = err?.response?.data?.message || err?.message || "Stripe initialization failed";
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Stripe initialization failed";
         setError(msg);
         toast(msg, "error");
       });
@@ -52,12 +57,18 @@ export default function CheckoutPage() {
   return (
     <div className="animate-in mx-auto max-w-2xl">
       <div className="mb-6 flex items-center gap-4">
-        <Button variant="secondary" onClick={() => router.back()} className="rounded-full w-10 h-10 p-0 flex items-center justify-center">
+        <Button
+          variant="secondary"
+          onClick={() => router.back()}
+          className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
+        >
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Checkout</h1>
-          <p className="text-sm text-text-muted">Complete your secure rent payment</p>
+          <p className="text-sm text-text-muted">
+            Complete your secure rent payment
+          </p>
         </div>
       </div>
 
@@ -65,7 +76,7 @@ export default function CheckoutPage() {
         <h3 className="mb-4 text-lg font-bold border-b border-border pb-4">
           Payment Details
         </h3>
-        
+
         <div className="mb-6 rounded-xl bg-primary/5 p-4 flex justify-between items-center">
           <span className="font-medium">Total Amount Due</span>
           <span className="text-xl font-bold text-primary">{amountLabel}</span>
@@ -75,7 +86,9 @@ export default function CheckoutPage() {
           <div className="p-6 text-center text-danger bg-danger/10 rounded-xl">
             {error}
             <div className="mt-4 flex justify-center">
-              <Button onClick={() => router.back()} variant="secondary">Go Back</Button>
+              <Button onClick={() => router.back()} variant="secondary">
+                Go Back
+              </Button>
             </div>
           </div>
         ) : clientSecret ? (
