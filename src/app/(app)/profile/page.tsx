@@ -39,7 +39,6 @@ export default function ProfilePage() {
   const [ecName, setEcName] = useState("");
   const [ecPhone, setEcPhone] = useState("");
 
-  // Notification Preferences mapping
   const [prefs, setPrefs] = useState({
     rent: true,
     maint: true,
@@ -187,32 +186,6 @@ export default function ProfilePage() {
                   placeholder="(555) 987-6543"
                 />
               </Field>
-            </div>
-          </Card>
-
-          <Card className="mt-4 p-6">
-            <h3 className="mb-3 flex items-center gap-2 font-bold">
-              <Bell className="h-4 w-4 text-primary" /> Notification Preferences
-            </h3>
-            <div className="divide-y divide-border">
-              {(
-                [
-                  ["Rent Reminders", "rent"],
-                  ["Maintenance Updates", "maint"],
-                  ["Building Announcements", "building"],
-                ] as const
-              ).map(([label, key]) => (
-                <div
-                  key={key}
-                  className="flex items-center justify-between py-2.5"
-                >
-                  <span className="text-sm font-semibold">{label}</span>
-                  <Toggle
-                    checked={prefs[key]}
-                    onChange={(v) => setPrefs({ ...prefs, [key]: v })}
-                  />
-                </div>
-              ))}
             </div>
           </Card>
 
