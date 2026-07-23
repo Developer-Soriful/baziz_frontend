@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
+import { OwnershipProvider } from "@/contexts/OwnershipContext";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, ready } = useAuth();
@@ -20,5 +21,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  return <AppShell>{children}</AppShell>;
+  return (
+    <OwnershipProvider>
+      <AppShell>{children}</AppShell>
+    </OwnershipProvider>
+  );
 }

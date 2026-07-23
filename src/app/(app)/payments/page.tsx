@@ -12,6 +12,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { paymentService } from "@/lib/services/payment.service";
 import { tenantService } from "@/lib/services/tenant.service";
 import { useRouter } from "next/navigation";
+import { useOwnership } from "@/contexts/OwnershipContext";
+import { OwnershipBadge } from "@/components/ownership/OwnershipBadge";
 
 export default function PaymentsPage() {
   const { user } = useAuth();
@@ -43,14 +45,13 @@ function LandlordPayments() {
     },
   });
 
-  const [filter, setFilter] = useState<"all" | "Paid" | "Pending" | "Overdue">(
-    "all",
-  );
-  const filtered = list.filter(
-    (p: any) =>
-      filter === "all" ||
-      (p.status || "").toLowerCase() === filter.toLowerCase(),
-  );
+  const [filter, setFilter] = useState<"all" | "Paid" | "Pending" | "Overdue">("all");
+  const { isPropertyInScope } = useOwnership();
+
+  const filtered = list.filter((p: any) => {
+    if (!isPropertyInScope(p.property?.id || p.property?._id || p.property)) return false;
+    return filter === "all" || (p.status || "").toLowerCase() === filter.toLowerCase();
+  });
   const num = (s: string | number) =>
     typeof s === "number" ? s : parseFloat(s.replace(/[£,]/g, ""));
 
@@ -159,11 +160,12 @@ function LandlordPayments() {
                 <p className="font-semibold">
                   {p.tenant?.name || p.tenant || "Unknown Tenant"}
                 </p>
-                <p className="text-xs text-text-muted">
+                <p className="text-xs text-text-muted mt-1 flex items-center gap-2">
                   {p.property?.name || p.property || "Unknown Property"} ·{" "}
                   {new Date(
                     p.date || p.dueDate || Date.now(),
                   ).toLocaleDateString("en-GB")}
+                  <OwnershipBadge entityId={p.property?.ownershipEntity} />
                 </p>
               </div>
               <span className="font-bold">
