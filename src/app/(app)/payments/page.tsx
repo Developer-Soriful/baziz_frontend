@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { PageTitle } from "@/components/page-title";
 import { Card, Badge, Button } from "@/components/ui/primitives";
 import { FilterChips, EmptyState } from "@/components/ui/misc";
-import { Modal } from "@/components/ui/modal";
-import { Field, Input } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth";
 import { paymentTone } from "@/lib/data";
@@ -18,15 +16,9 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { paymentService, Payment } from "@/lib/services/payment.service";
+import { paymentService } from "@/lib/services/payment.service";
 import { tenantService } from "@/lib/services/tenant.service";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements } from "@stripe/react-stripe-js";
-import { StripePaymentForm } from "@/components/payments/StripePaymentForm";
-
-const stripePromise = loadStripe(
-  "pk_test_51SS1nAR3i1UyIGRriTohUDb5vFmb3VZB3LaXqdzxwki8TwgRsaTyk9MGR2iZ83INVeWSvU8C9xnWtu5LD5gxKjke00RFB9oWLs",
-);
+import { useRouter } from "next/navigation";
 
 export default function PaymentsPage() {
   const { user } = useAuth();
@@ -196,10 +188,9 @@ function LandlordPayments() {
 function TenantPayments() {
   const toast = useToast();
   const qc = useQueryClient();
-  const [pay, setPay] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isFetchingSecret, setIsFetchingSecret] = useState(false);
   const { user } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -252,25 +243,9 @@ function TenantPayments() {
       upcomingRent?._id;
     if (!paymentId) return;
 
-    setIsFetchingSecret(true);
-    try {
-      const data = await paymentService.createPaymentIntent(paymentId);
-      if (data?.clientSecret) {
-        setClientSecret(data.clientSecret);
-        setPay(true);
-      } else {
-        toast("Failed to generate payment intent", "error");
-      }
-    } catch (err: any) {
-      toast(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Stripe initialization failed",
-        "error",
-      );
-    } finally {
-      setIsFetchingSecret(false);
-    }
+    router.push(
+      `/payments/checkout/${paymentId}?amount=${upcomingRent.amount}`,
+    );
   };
 
   if (!isDashboardLoading && !dashboard) {
@@ -376,40 +351,6 @@ function TenantPayments() {
           ))}
         </Card>
       )}
-
-      <Modal
-        open={pay}
-        onClose={() => {
-          setPay(false);
-          setClientSecret(null);
-        }}
-        title="Card Payment"
-        subtitle={`Amount Due ${formatAmount(upcomingRent?.amount)}`}
-      >
-        {clientSecret ? (
-          <Elements stripe={stripePromise} options={{ clientSecret }}>
-            <StripePaymentForm
-              clientSecret={clientSecret}
-              amountLabel={formatAmount(upcomingRent?.amount)}
-              onCancel={() => {
-                setPay(false);
-                setClientSecret(null);
-              }}
-              onSuccess={() => {
-                qc.invalidateQueries({ queryKey: ["payments-tenant"] });
-                qc.invalidateQueries({ queryKey: ["tenant-dashboard"] });
-                toast("Payment successful!", "success");
-                setPay(false);
-                setClientSecret(null);
-              }}
-            />
-          </Elements>
-        ) : (
-          <div className="p-8 text-center text-text-muted">
-            Loading Stripe elements...
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

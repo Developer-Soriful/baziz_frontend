@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import {
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 import { apiClient } from "@/lib/api/client";
@@ -31,10 +35,7 @@ export function StripePaymentForm({
     setLoading(true);
 
     try {
-      // Trigger dev webhook sync before redirection (just in case they redirect away)
-      // Since confirmPayment will redirect the user if using redirect-based payments (or card 3DS secure confirmation),
-      // we extract the payment intent ID from clientSecret to trigger a mock sync for localhost convenience.
-      const paymentIntentId = clientSecret.split('_secret_')[0];
+      const paymentIntentId = clientSecret.split("_secret_")[0];
       if (paymentIntentId) {
         try {
           await apiClient.post("/webhooks/stripe/dev-test", {
@@ -63,7 +64,10 @@ export function StripePaymentForm({
         onSuccess();
       }
     } catch (err: any) {
-      toast(err?.message || "An unexpected error occurred during payment", "error");
+      toast(
+        err?.message || "An unexpected error occurred during payment",
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -74,9 +78,16 @@ export function StripePaymentForm({
       <div className="rounded-lg border border-border p-4 bg-background animate-in">
         <PaymentElement />
       </div>
-      <p className="text-center text-xs text-text-faint">🔒 Payments secured by Stripe (Card, Apple Pay, Google Pay)</p>
+      <p className="text-center text-xs text-text-faint">
+        🔒 Payments secured by Stripe (Card, Apple Pay, Google Pay)
+      </p>
       <div className="flex gap-3 justify-end pt-3">
-        <Button variant="secondary" type="button" onClick={onCancel} disabled={loading}>
+        <Button
+          variant="secondary"
+          type="button"
+          onClick={onCancel}
+          disabled={loading}
+        >
           Cancel
         </Button>
         <Button type="submit" loading={loading} disabled={!stripe || !elements}>
