@@ -78,7 +78,7 @@ export function moreGroups(role: Role): MoreGroup[] {
             desc: "Maintenance requests and tracking",
           },
           {
-            label: "Documents",
+            label: "Announcements",
             href: "/documents",
             icon: FileText,
             desc: "View your lease and documents",
@@ -192,7 +192,7 @@ export function moreGroups(role: Role): MoreGroup[] {
       title: "Investment & Tools",
       items: [
         {
-          label: "Documents Vault",
+          label: "Announcements Vault",
           href: "/documents",
           icon: FileText,
           desc: "Property documents and files",

@@ -310,7 +310,7 @@ function TenantHome() {
       color: "#007aff",
     },
     {
-      label: "Documents",
+      label: "Announcements",
       href: "/documents",
       icon: FileText,
       color: "#7c3aed",

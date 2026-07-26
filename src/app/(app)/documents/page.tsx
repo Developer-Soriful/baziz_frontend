@@ -84,8 +84,8 @@ function LandlordDocs() {
   return (
     <div className="animate-in">
       <PageTitle
-        title="Documents"
-        subtitle="All your important documents in one place"
+        title="Announcements"
+        subtitle="All your important announcements in one place"
         action={
           <Button onClick={() => setModal(true)}>
             <Plus className="h-4 w-4" /> Upload
@@ -110,7 +110,7 @@ function LandlordDocs() {
           ]}
         />
       </div>
-      
+
       {isLoading ? (
         <div className="text-center text-text-muted mt-10">Loading documents...</div>
       ) : filtered.length === 0 ? (
@@ -191,10 +191,10 @@ function LandlordDocs() {
               )}
             </Select>
           </Field>
-          
+
           <Field label="File">
-            <input 
-              type="file" 
+            <input
+              type="file"
               className="w-full rounded-xl border border-border bg-surface p-2 text-sm"
               onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
@@ -232,11 +232,11 @@ function TenantDocs() {
   if (!mainLease && otherDocs.length === 0) {
     return (
       <div className="animate-in">
-        <PageTitle title="Documents" subtitle="Contract Agreement" />
+        <PageTitle title="Announcements" subtitle="Contract Agreement" />
         <Card className="mt-4">
           <EmptyState
             icon={FileText}
-            title="No Documents"
+            title="No Announcements"
             message="Your landlord hasn't shared any documents with you yet."
           />
         </Card>

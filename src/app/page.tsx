@@ -11,7 +11,7 @@ import {
 const features = [
   { icon: Wallet, title: "Payments & Rent", desc: "Collect rent, automate reminders and reconcile every payment in seconds." },
   { icon: Wrench, title: "Maintenance", desc: "Log, schedule and resolve issues with your trusted contractors." },
-  { icon: FileText, title: "Documents Vault", desc: "Store leases & certificates securely and share with tenants instantly." },
+  { icon: FileText, title: "Announcements Vault", desc: "Store leases & certificates securely and share with tenants instantly." },
   { icon: MessageSquare, title: "Messaging + AI", desc: "Chat with tenants and teams, plus an AI assistant for property questions." },
   { icon: BarChart3, title: "Analytics & ROI", desc: "Live yields, occupancy and calculators to grow your portfolio." },
   { icon: ShieldCheck, title: "Bank-grade security", desc: "Role-based access and encryption keep everyone's data safe." },
