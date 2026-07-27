@@ -7,8 +7,8 @@ import { Card, Badge, Button, Avatar } from "@/components/ui/primitives";
 import { Field, Input, Select } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { tenantTone } from "@/lib/data";
-import { colorFromString } from "@/lib/utils";
+import { tenantTone, billTone } from "@/lib/data";
+import { colorFromString, gbp } from "@/lib/utils";
 import {
   ArrowLeft,
   Building2,
@@ -26,12 +26,56 @@ import {
   Send,
   Clock,
   CheckCircle,
+  FileText,
+  Plus,
+  Droplet,
+  Zap,
+  Flame,
+  Landmark,
+  Globe,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantService } from "@/lib/services/tenant.service";
 import { propertyService } from "@/lib/services/property.service";
 import { chatService } from "@/lib/services/chat.service";
+import { billService } from "@/lib/services/bill.service";
 import { useAuth } from "@/lib/auth";
+
+const icons: Record<string, React.ElementType> = {
+  water: Droplet,
+  electricity: Zap,
+  gas: Flame,
+  council_tax: Landmark,
+  broadband: Globe,
+  other: FileText,
+};
+
+const billTypeLabels: Record<string, string> = {
+  water: "Water",
+  electricity: "Electricity",
+  gas: "Gas",
+  council_tax: "Council Tax",
+  broadband: "Broadband",
+  other: "Other",
+};
+
+const billingCycleLabels: Record<string, string> = {
+  weekly: "Weekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+  one_time: "One Time",
+};
+
+function formatDueDate(dueDay: number, cycle: string) {
+  if (cycle === "weekly") {
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    return `Every ${days[(dueDay - 1) % 7]}`;
+  }
+  if (cycle === "monthly") {
+    return `Day ${dueDay} of month`;
+  }
+  return `Day ${dueDay}`;
+}
 
 export default function TenantDetailPage() {
   const { id } = useParams() as { id: string };
@@ -58,9 +102,21 @@ export default function TenantDetailPage() {
     enabled: !!user && user.role === "landlord",
   });
 
+  const { data: allBills = [] } = useQuery({
+    queryKey: ["monthly-bills"],
+    queryFn: billService.getAll,
+    enabled: !!user && user.role === "landlord",
+  });
+
   const tenant = list.find((t: any) => (t._id || t.id) === id);
+  const tenantUserId = tenant?.tenantId?._id || tenant?.tenantId;
+  const tenantBills = allBills.filter((b: any) => {
+    const bTenantId = b.tenantId?._id || b.tenantId;
+    return bTenantId === tenantUserId || bTenantId === id;
+  });
 
   const [editModal, setEditModal] = useState(false);
+  const [billModal, setBillModal] = useState(false);
 
   const [form, setForm] = useState({
     tenantFullName: "",
@@ -75,6 +131,15 @@ export default function TenantDetailPage() {
     leaseStartDate: "",
     leaseEndDate: "",
     numberOfParkingSpots: "0",
+  });
+
+  const [billForm, setBillForm] = useState({
+    billType: "water",
+    billingCycle: "monthly",
+    supplier: "",
+    accountReference: "",
+    amount: "",
+    dueDay: "1",
   });
 
   const openEdit = () => {
@@ -127,6 +192,35 @@ export default function TenantDetailPage() {
     },
   });
 
+  const addBillMutation = useMutation({
+    mutationFn: billService.addBill,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["monthly-bills"] });
+      toast("Bill assigned to tenant successfully", "success");
+      setBillModal(false);
+      setBillForm({
+        billType: "water",
+        billingCycle: "monthly",
+        supplier: "",
+        accountReference: "",
+        amount: "",
+        dueDay: "1",
+      });
+    },
+    onError: (err: any) =>
+      toast(err?.response?.data?.message || "Failed to assign bill", "error"),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: (args: { id: string; status: "paid" | "pending" | "overdue" }) =>
+      billService.updateStatus(args.id, args.status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["monthly-bills"] });
+      toast("Bill status updated", "success");
+    },
+    onError: () => toast("Failed to update status", "error"),
+  });
+
   const startChatMutation = useMutation({
     mutationFn: (data: { propertyId: string; tenantId: string }) =>
       chatService.createDirectConversation(data.propertyId, data.tenantId),
@@ -169,6 +263,29 @@ export default function TenantDetailPage() {
     };
 
     updateMutation.mutate({ id, data: payload });
+  };
+
+  const handleAddBill = () => {
+    if (!tenantUserId) {
+      return toast("Cannot assign a bill because this tenant has not fully registered an account yet.", "warning");
+    }
+    if (!billForm.supplier || !billForm.accountReference || !billForm.amount) {
+      return toast("Please fill in required fields", "error");
+    }
+    const amountNum = Number(billForm.amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      return toast("Amount must be a positive number", "error");
+    }
+
+    addBillMutation.mutate({
+      billType: billForm.billType as any,
+      billingCycle: billForm.billingCycle as any,
+      supplier: billForm.supplier,
+      accountReference: billForm.accountReference,
+      amount: amountNum,
+      dueDay: Number(billForm.dueDay),
+      tenantId: tenantUserId,
+    });
   };
 
   const handleDelete = () => {
@@ -219,9 +336,8 @@ export default function TenantDetailPage() {
       ? `£${tenant.securityDeposit.toLocaleString()}`
       : "—";
 
-  const tenantId = tenant.tenantId?._id || tenant.tenantId;
   const propertyId = tenant.propertyId?._id || tenant.propertyId;
-  const hasIds = !!tenantId && !!propertyId;
+  const hasIds = !!tenantUserId && !!propertyId;
   const signupLink = `${typeof window !== "undefined" ? window.location.origin : ""}/tenant/signup?leaseId=${id}`;
 
   const selectedProperty = properties.find(
@@ -262,7 +378,7 @@ export default function TenantDetailPage() {
           {hasIds && (
             <Button
               onClick={() =>
-                startChatMutation.mutate({ propertyId, tenantId })
+                startChatMutation.mutate({ propertyId, tenantId: tenantUserId })
               }
               loading={startChatMutation.isPending}
               className="flex items-center gap-2"
@@ -476,6 +592,78 @@ export default function TenantDetailPage() {
         </Card>
       </div>
 
+      {/* Tenant Bills Section */}
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <h2 className="text-base font-bold flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" /> Tenant Bills
+          </h2>
+          <Button size="sm" onClick={() => setBillModal(true)}>
+            <Plus className="h-4 w-4" /> Add Bill
+          </Button>
+        </div>
+        
+        {tenantBills.length === 0 ? (
+          <div className="py-8 text-center text-sm text-text-muted">
+            No bills assigned to this tenant yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {tenantBills.map((b: any) => {
+              const Icon = icons[b.billType] ?? FileText;
+              const label = billTypeLabels[b.billType] || b.billType;
+
+              return (
+                <div key={b._id} className="rounded-xl border border-border p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-bold capitalize flex items-center gap-2 text-sm">
+                        {label}
+                        <Badge tone="neutral" className="capitalize text-[10px] font-medium px-1.5 py-0">
+                          {billingCycleLabels[b.billingCycle] || b.billingCycle}
+                        </Badge>
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        {b.supplier} · {b.accountReference}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border mt-1">
+                    <span className="font-bold text-sm">
+                      {gbp(b.amount, { decimals: true })}
+                    </span>
+                    <Select
+                      value={b.paymentStatus}
+                      onChange={(e) =>
+                        statusMutation.mutate({
+                          id: b._id,
+                          status: e.target.value as any,
+                        })
+                      }
+                      className={`h-7 py-0 pl-2 pr-6 text-xs font-semibold rounded border-0 ${
+                        b.paymentStatus === "paid"
+                          ? "bg-success/10 text-success"
+                          : b.paymentStatus === "overdue"
+                            ? "bg-danger/10 text-danger"
+                            : "bg-warning/10 text-warning"
+                      }`}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="paid">Paid</option>
+                      <option value="overdue">Overdue</option>
+                    </Select>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
       {/* Edit Modal */}
       <Modal
         open={editModal}
@@ -612,6 +800,96 @@ export default function TenantDetailPage() {
                 onChange={(e) =>
                   setForm({ ...form, leaseEndDate: e.target.value })
                 }
+              />
+            </Field>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add Bill Modal */}
+      <Modal
+        open={billModal}
+        onClose={() => setBillModal(false)}
+        title="Assign Bill to Tenant"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setBillModal(false)}>
+              Cancel
+            </Button>
+            <Button loading={addBillMutation.isPending} onClick={handleAddBill}>
+              Save Bill
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Bill Type">
+              <Select
+                value={billForm.billType}
+                onChange={(e) => setBillForm({ ...billForm, billType: e.target.value })}
+              >
+                {Object.entries(billTypeLabels).map(([val, label]) => (
+                  <option key={val} value={val}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Billing Cycle">
+              <Select
+                value={billForm.billingCycle}
+                onChange={(e) => setBillForm({ ...billForm, billingCycle: e.target.value })}
+              >
+                {Object.entries(billingCycleLabels).map(([val, label]) => (
+                  <option key={val} value={val}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Supplier Name">
+              <Input
+                value={billForm.supplier}
+                onChange={(e) => setBillForm({ ...billForm, supplier: e.target.value })}
+                placeholder="e.g. Thames Water"
+              />
+            </Field>
+            <Field label="Account Reference">
+              <Input
+                value={billForm.accountReference}
+                onChange={(e) =>
+                  setBillForm({ ...billForm, accountReference: e.target.value })
+                }
+                placeholder="e.g. 123456789"
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Amount (£)">
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={billForm.amount}
+                onChange={(e) =>
+                  setBillForm({ ...billForm, amount: e.target.value })
+                }
+                placeholder="45.50"
+              />
+            </Field>
+            <Field label="Due Day">
+              <Input
+                type="number"
+                min="1"
+                max="365"
+                value={billForm.dueDay}
+                onChange={(e) => setBillForm({ ...billForm, dueDay: e.target.value })}
+                placeholder="e.g. 15"
               />
             </Field>
           </div>

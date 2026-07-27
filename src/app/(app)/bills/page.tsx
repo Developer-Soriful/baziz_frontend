@@ -42,14 +42,26 @@ const billTypeLabels: Record<string, string> = {
   other: "Other",
 };
 
-function formatDueDate(dueDay: number) {
-  const d = new Date();
-  d.setDate(dueDay);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const billingCycleLabels: Record<string, string> = {
+  weekly: "Weekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+  one_time: "One Time",
+};
+
+function formatDueDate(dueDay: number, cycle: string) {
+  if (cycle === "weekly") {
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    return `Every ${days[(dueDay - 1) % 7]}`;
+  }
+  if (cycle === "monthly") {
+    return `Day ${dueDay} of month`;
+  }
+  return `Day ${dueDay}`;
 }
 
 function calculateSummary(bills: MonthlyBill[]) {
-  const total = bills.reduce((s, b) => s + b.monthlyAmount, 0);
+  const total = bills.reduce((s, b) => s + b.amount, 0);
   const paid = bills.filter((b) => b.paymentStatus === "paid").length;
   const pending = bills.filter((b) => b.paymentStatus === "pending").length;
   return { total, paid, pending };
@@ -70,9 +82,10 @@ function TenantBills() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({
     billType: "water",
+    billingCycle: "monthly",
     supplier: "",
     accountReference: "",
-    monthlyAmount: "",
+    amount: "",
     dueDay: "1",
     supplierPhone: "",
     supplierWebsite: "",
@@ -91,9 +104,10 @@ function TenantBills() {
       setModal(false);
       setForm({
         billType: "water",
+        billingCycle: "monthly",
         supplier: "",
         accountReference: "",
-        monthlyAmount: "",
+        amount: "",
         dueDay: "1",
         supplierPhone: "",
         supplierWebsite: "",
@@ -112,14 +126,29 @@ function TenantBills() {
     onError: () => toast("Failed to delete bill", "error"),
   });
 
+  const statusMutation = useMutation({
+    mutationFn: ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: "paid" | "pending" | "overdue";
+    }) => billService.updateStatus(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["monthly-bills"] });
+      toast("Status updated", "success");
+    },
+    onError: () => toast("Failed to update status", "error"),
+  });
+
   const save = () => {
-    if (!form.supplier || !form.accountReference || !form.monthlyAmount) {
+    if (!form.supplier || !form.accountReference || !form.amount) {
       return toast("Please fill in required fields", "error");
     }
 
-    const amount = Number(form.monthlyAmount);
+    const amount = Number(form.amount);
     if (isNaN(amount) || amount <= 0) {
-      return toast("Monthly amount must be a positive number", "error");
+      return toast("Amount must be a positive number", "error");
     }
 
     let website = form.supplierWebsite.trim();
@@ -129,9 +158,10 @@ function TenantBills() {
     
     addMutation.mutate({
       billType: form.billType as any,
+      billingCycle: form.billingCycle as any,
       supplier: form.supplier,
       accountReference: form.accountReference,
-      monthlyAmount: amount,
+      amount: amount,
       dueDay: Number(form.dueDay),
       supplierPhone: form.supplierPhone || undefined,
       supplierWebsite: website || undefined,
@@ -143,7 +173,7 @@ function TenantBills() {
   return (
     <div className="animate-in">
       <PageTitle
-        title="Monthly Bills"
+        title="My Bills"
         subtitle="Manage your utilities & suppliers"
         action={
           <Button onClick={() => setModal(true)}>
@@ -156,7 +186,7 @@ function TenantBills() {
         className="overflow-hidden rounded-2xl p-6 text-white mb-6"
         style={{ background: "linear-gradient(120deg,#008577,#00574b)" }}
       >
-        <p className="text-sm text-white/80">Estimated Monthly Total</p>
+        <p className="text-sm text-white/80">Estimated Total</p>
         <p className="text-4xl font-extrabold">
           {gbp(total, { decimals: true })}
         </p>
@@ -183,7 +213,7 @@ function TenantBills() {
           <EmptyState
             icon={FileText}
             title="No Bills Found"
-            message="You don't have any monthly bills yet. Add one to start tracking."
+            message="You don't have any bills yet. Add one to start tracking."
             action={<Button onClick={() => setModal(true)}>Add Bill</Button>}
           />
         </Card>
@@ -210,30 +240,42 @@ function TenantBills() {
                     <Icon className="h-5 w-5" />
                   </span>
                   <div className="flex-1 pr-10">
-                    <p className="font-bold capitalize">{label}</p>
+                    <p className="font-bold capitalize flex items-center gap-2">
+                      {label}
+                      <Badge tone="neutral" className="capitalize text-xs font-medium px-2 py-0.5">{billingCycleLabels[b.billingCycle] || b.billingCycle}</Badge>
+                    </p>
                     <p className="text-xs text-text-muted">
                       {b.supplier} · {b.accountReference}
                     </p>
                   </div>
-                  <Badge
-                    tone={billTone(
+                  <Select
+                    value={b.paymentStatus}
+                    onChange={(e) =>
+                      statusMutation.mutate({
+                        id: b._id,
+                        status: e.target.value as any,
+                      })
+                    }
+                    className={`h-8 py-0 pl-3 pr-8 text-xs font-semibold rounded-full border-0 ${
                       b.paymentStatus === "paid"
-                        ? "Paid"
+                        ? "bg-success/10 text-success"
                         : b.paymentStatus === "overdue"
-                          ? "Overdue"
-                          : "Pending",
-                    )}
+                          ? "bg-danger/10 text-danger"
+                          : "bg-warning/10 text-warning"
+                    }`}
                   >
-                    {b.paymentStatus}
-                  </Badge>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                  </Select>
                 </div>
 
                 <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
                   <span className="text-text-muted">
-                    Due approx. {formatDueDate(b.dueDay)}
+                    Due approx. {formatDueDate(b.dueDay, b.billingCycle)}
                   </span>
                   <span className="font-bold">
-                    {gbp(b.monthlyAmount, { decimals: true })}
+                    {gbp(b.amount, { decimals: true })}
                   </span>
                 </div>
 
@@ -269,7 +311,7 @@ function TenantBills() {
       <Modal
         open={modal}
         onClose={() => setModal(false)}
-        title="Add Monthly Bill"
+        title="Add Bill"
         footer={
           <>
             <Button variant="secondary" onClick={() => setModal(false)}>
@@ -295,17 +337,17 @@ function TenantBills() {
                 ))}
               </Select>
             </Field>
-            <Field label="Monthly Amount (£)">
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.monthlyAmount}
-                onChange={(e) =>
-                  setForm({ ...form, monthlyAmount: e.target.value })
-                }
-                placeholder="45.50"
-              />
+            <Field label="Billing Cycle">
+              <Select
+                value={form.billingCycle}
+                onChange={(e) => setForm({ ...form, billingCycle: e.target.value })}
+              >
+                {Object.entries(billingCycleLabels).map(([val, label]) => (
+                  <option key={val} value={val}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
             </Field>
           </div>
 
@@ -328,15 +370,30 @@ function TenantBills() {
             </Field>
           </div>
 
-          <Field label="Due Day (1-31)">
-            <Input
-              type="number"
-              min="1"
-              max="31"
-              value={form.dueDay}
-              onChange={(e) => setForm({ ...form, dueDay: e.target.value })}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Amount (£)">
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.amount}
+                onChange={(e) =>
+                  setForm({ ...form, amount: e.target.value })
+                }
+                placeholder="45.50"
+              />
+            </Field>
+            <Field label="Due Day">
+              <Input
+                type="number"
+                min="1"
+                max="365"
+                value={form.dueDay}
+                onChange={(e) => setForm({ ...form, dueDay: e.target.value })}
+                placeholder="e.g. 15"
+              />
+            </Field>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Supplier Phone (Optional)">
@@ -395,7 +452,7 @@ function LandlordBills() {
   return (
     <div className="animate-in">
       <PageTitle
-        title="Monthly Bills"
+        title="Tenant Bills"
         subtitle="Track utilities across your properties"
       />
 
@@ -403,7 +460,7 @@ function LandlordBills() {
         className="overflow-hidden rounded-2xl p-6 text-white mb-6"
         style={{ background: "linear-gradient(120deg,#008577,#00574b)" }}
       >
-        <p className="text-sm text-white/80">Total Tenant Bills</p>
+        <p className="text-sm text-white/80">Total Expected</p>
         <p className="text-4xl font-extrabold">
           {gbp(total, { decimals: true })}
         </p>
@@ -430,7 +487,7 @@ function LandlordBills() {
           <EmptyState
             icon={FileText}
             title="No Bills Found"
-            message="Your tenants haven't added any monthly bills yet."
+            message="Your tenants haven't added any bills yet."
           />
         </Card>
       ) : (
@@ -446,7 +503,10 @@ function LandlordBills() {
                     <Icon className="h-5 w-5" />
                   </span>
                   <div className="flex-1">
-                    <p className="font-bold capitalize">{label}</p>
+                    <p className="font-bold capitalize flex items-center gap-2">
+                      {label}
+                      <Badge tone="neutral" className="capitalize text-xs font-medium px-2 py-0.5">{billingCycleLabels[b.billingCycle] || b.billingCycle}</Badge>
+                    </p>
                     <p className="text-xs text-text-muted">
                       {b.supplier} · {b.accountReference}
                     </p>
@@ -477,10 +537,10 @@ function LandlordBills() {
 
                 <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm">
                   <span className="text-text-muted">
-                    Due approx. {formatDueDate(b.dueDay)}
+                    Due approx. {formatDueDate(b.dueDay, b.billingCycle)}
                   </span>
                   <span className="font-bold">
-                    {gbp(b.monthlyAmount, { decimals: true })}
+                    {gbp(b.amount, { decimals: true })}
                   </span>
                 </div>
 

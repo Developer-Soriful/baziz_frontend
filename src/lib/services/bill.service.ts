@@ -8,9 +8,10 @@ export interface MonthlyBill {
   tenantId: any;
   landlordId: any;
   billType: "water" | "electricity" | "gas" | "council_tax" | "broadband" | "other";
+  billingCycle: "weekly" | "monthly" | "yearly" | "one_time";
   supplier: string;
   accountReference: string;
-  monthlyAmount: number;
+  amount: number;
   dueDay: number;
   paymentStatus: "paid" | "pending" | "overdue";
   supplierPhone?: string;
@@ -32,7 +33,7 @@ export type AddBillInput = Omit<
   | "isActive"
   | "createdAt"
   | "updatedAt"
->;
+> & { tenantId?: string };
 
 export const billService = {
   getAll: () =>
