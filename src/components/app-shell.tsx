@@ -6,16 +6,35 @@ import { useState } from "react";
 import { Bell, Moon, Sun, LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
+import { useSocket } from "@/lib/socket";
 import { primaryNav, moreGroups } from "@/lib/nav-config";
 import { Avatar } from "@/components/ui/primitives";
 import { cn, colorFromString } from "@/lib/utils";
+import { useToast } from "@/components/ui/toast";
+import { useEffect } from "react";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
+  const { socket } = useSocket();
+  const toast = useToast();
   const pathname = usePathname();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleNotification = (notif: any) => {
+      toast(`New Alert: ${notif.title}`, "info");
+    };
+
+    socket.on("notification:new", handleNotification);
+    return () => {
+      socket.off("notification:new", handleNotification);
+    };
+  }, [socket, toast]);
+
   if (!user) return null;
 
   const nav = primaryNav(user.role);

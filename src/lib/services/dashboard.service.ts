@@ -5,6 +5,11 @@ export interface DashboardStats {
   portfolioStats?: any;
   revenueByMonth?: any;
   recentPayments?: any;
+  analytics?: {
+    occupancyRate: number;
+    maintenanceCompletion: number;
+    onTimeRent: number;
+  };
 }
 
 export const dashboardService = {
@@ -42,6 +47,13 @@ export const dashboardService = {
 
       return {
         portfolioStats,
+        revenueByMonth: overview.revenueByMonth || [],
+        recentPayments: overview.recentPayments || [],
+        analytics: overview.analytics || {
+          occupancyRate: 0,
+          maintenanceCompletion: 0,
+          onTimeRent: 0
+        },
       } as DashboardStats;
     }),
 };

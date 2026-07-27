@@ -94,8 +94,44 @@ function LandlordHome() {
   }, [taskResponse]);
 
   const realPortfolio = stats?.portfolioStats || portfolioStats;
-  const realRevenue = stats?.revenueByMonth || revenueByMonth;
-  const realRecent = stats?.recentPayments || recentPayments;
+  const realRevenue = stats?.revenueByMonth && stats.revenueByMonth.length > 0 ? stats.revenueByMonth : revenueByMonth;
+  const realRecent = stats?.recentPayments && stats.recentPayments.length > 0 ? stats.recentPayments : recentPayments;
+
+  const realPropertyMatches = useMemo(() => {
+    if (!properties || properties.length === 0) return propertyMatches;
+    return properties.map((p: any) => {
+      const formattedLocation = typeof p.address === 'object' && p.address !== null
+        ? [p.address.streetAddress, p.address.city, p.address.postcode].filter(Boolean).join(', ')
+        : p.address || "Unknown Location";
+        
+      return {
+        title: p.propertyName || "Property",
+        location: formattedLocation,
+        price: "£0", // Or extract price if available
+        image: p.images?.[0] || "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=500&q=80",
+      };
+    }).slice(0, 3);
+  }, [properties]);
+
+  const realAnalyticsBars = useMemo(() => {
+    if (!stats?.analytics) return analyticsBars;
+    return [
+      { label: "Occupancy Rate", value: stats.analytics.occupancyRate, color: "#007aff" },
+      { label: "Maintenance Completion", value: stats.analytics.maintenanceCompletion, color: "#10b981" },
+      { label: "On-time Rent", value: stats.analytics.onTimeRent, color: "#f59e0b" },
+    ];
+  }, [stats]);
+
+  const realPropertyPins = useMemo(() => {
+    if (!properties || properties.length === 0) return propertyPins;
+    return properties.map((p: any, i: number) => ({
+      lat: p.location?.lat || 51.5074 + (i * 0.01),
+      lng: p.location?.lng || -0.1278 + (i * 0.01),
+      name: p.propertyName || `Property ${i}`,
+      status: p.isActive ? "active" : "maintenance"
+    }));
+  }, [properties]);
+
   return (
     <div className="animate-in space-y-5">
       <div className="flex items-center justify-between">
@@ -138,14 +174,20 @@ function LandlordHome() {
             </div>
           </div>
           <div className="h-60">
-            <RevenueChart data={realRevenue} />
+            {realRevenue && realRevenue.length > 0 ? (
+              <RevenueChart data={realRevenue} />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm font-semibold text-text-muted">
+                No financial data available yet.
+              </div>
+            )}
           </div>
         </Card>
         <div className="flex flex-col gap-4">
           <Card className="p-5">
             <h3 className="mb-4 font-bold">Portfolio Analytics</h3>
             <div className="space-y-4">
-              {analyticsBars.map((r) => (
+              {realAnalyticsBars.map((r) => (
                 <div key={r.label}>
                   <div className="mb-1.5 flex justify-between text-sm">
                     <span className="text-text-muted">{r.label}</span>
@@ -213,7 +255,7 @@ function LandlordHome() {
             </Link>
           </div>
           <div className="space-y-3">
-            {propertyMatches.map((m) => (
+            {realPropertyMatches.map((m: any) => (
               <div key={m.title} className="flex items-center gap-3">
                 <img
                   src={m.image}
@@ -238,10 +280,10 @@ function LandlordHome() {
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-bold">Property Map</h3>
             <span className="flex items-center gap-1 text-xs text-text-muted">
-              <MapPin className="h-3.5 w-3.5" /> {propertyPins.length}
+              <MapPin className="h-3.5 w-3.5" /> {realPropertyPins.length}
             </span>
           </div>
-          <MapPanel pins={propertyPins} />
+          <MapPanel pins={realPropertyPins} />
         </Card>
       </div>
 
