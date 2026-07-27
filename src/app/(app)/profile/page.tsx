@@ -10,7 +10,7 @@ import { colorFromString, gbp } from "@/lib/utils";
 import { User, ShieldAlert, Calendar, Bell } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tenantService } from "@/lib/services/tenant.service";
-import { userService } from "@/lib/services/user.service";
+import { userService, UpdateProfileInput } from "@/lib/services/user.service";
 
 export default function ProfilePage() {
   const toast = useToast();
@@ -40,9 +40,9 @@ export default function ProfilePage() {
   const [ecPhone, setEcPhone] = useState("");
 
   const [prefs, setPrefs] = useState({
-    rent: true,
-    maint: true,
-    building: true,
+    paymentDue: true,
+    maintenance: true,
+    pushNotifications: true,
   });
 
   useEffect(() => {
@@ -60,9 +60,9 @@ export default function ProfilePage() {
 
       if (profile.notificationPreferences) {
         setPrefs({
-          rent: profile.notificationPreferences.paymentDue,
-          maint: profile.notificationPreferences.maintenance,
-          building: profile.notificationPreferences.pushNotifications,
+          paymentDue: profile.notificationPreferences.paymentDue ?? true,
+          maintenance: profile.notificationPreferences.maintenance ?? true,
+          pushNotifications: profile.notificationPreferences.pushNotifications ?? true,
         });
       }
     }
@@ -71,24 +71,25 @@ export default function ProfilePage() {
   const updateProfileMutation = useMutation({
     mutationFn: async () => {
       // 1. Update basic profile
-      await userService.updateProfile({
-        firstName: name,
-        phone,
-        companyName,
-        address,
-        ...(isTenant && ecName && ecPhone
-          ? { emergencyContact: { name: ecName, phone: ecPhone } }
-          : {}),
-      } as any);
+      const profileData: UpdateProfileInput = {
+        firstName: name, // The backend expects firstName as the full name representation in the schema
+        phone: phone || null,
+        companyName: companyName || null,
+        address: address || null,
+      };
 
-      // 2. Update notifications (for tenant)
-      if (isTenant) {
-        await userService.updateNotificationPreferences({
-          paymentDue: prefs.rent,
-          maintenance: prefs.maint,
-          pushNotifications: prefs.building,
-        });
+      if (isTenant && ecName && ecPhone) {
+        profileData.emergencyContact = { name: ecName, phone: ecPhone };
       }
+
+      await userService.updateProfile(profileData);
+
+      // 2. Update notifications
+      await userService.updateNotificationPreferences({
+        paymentDue: prefs.paymentDue,
+        maintenance: prefs.maintenance,
+        pushNotifications: prefs.pushNotifications,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
@@ -98,8 +99,8 @@ export default function ProfilePage() {
     onError: (error: any) => {
       toast(
         error.response?.data?.message ||
-          error.message ||
-          "Error saving profile",
+        error.message ||
+        "Error saving profile",
         "error",
       );
     },
@@ -121,7 +122,7 @@ export default function ProfilePage() {
             onClick={() => updateProfileMutation.mutate()}
             loading={updateProfileMutation.isPending}
           >
-            Save
+            Save Changes
           </Button>
         }
       />
@@ -263,6 +264,46 @@ export default function ProfilePage() {
           </div>
         </Card>
       )}
+
+      <Card className="mt-4 p-6">
+        <h3 className="mb-3 flex items-center gap-2 font-bold">
+          <Bell className="h-4 w-4 text-primary" /> Notification Preferences
+        </h3>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Rent & Payments</p>
+              <p className="text-sm text-text-muted">Receive alerts when rent is due or payments are processed.</p>
+            </div>
+            <Toggle
+              checked={prefs.paymentDue}
+              onChange={(v) => setPrefs(p => ({ ...p, paymentDue: v }))}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Maintenance Updates</p>
+              <p className="text-sm text-text-muted">Get notified about status changes for maintenance requests.</p>
+            </div>
+            <Toggle
+              checked={prefs.maintenance}
+              onChange={(v) => setPrefs(p => ({ ...p, maintenance: v }))}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Push Notifications</p>
+              <p className="text-sm text-text-muted">Receive alerts directly on your device from the app.</p>
+            </div>
+            <Toggle
+              checked={prefs.pushNotifications}
+              onChange={(v) => setPrefs(p => ({ ...p, pushNotifications: v }))}
+            />
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

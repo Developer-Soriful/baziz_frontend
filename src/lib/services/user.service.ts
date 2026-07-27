@@ -1,6 +1,18 @@
 import { apiClient } from "../api/client";
 import { ENDPOINTS } from "../api/endpoints";
 
+export interface UpdateProfileInput {
+  firstName?: string;
+  phone?: string | null;
+  companyName?: string | null;
+  address?: string | null;
+  emergencyContact?: {
+    name: string;
+    phone: string;
+    relationship?: string;
+  } | null;
+}
+
 export interface UserProfile {
   id: string;
   fullName: string;
@@ -42,7 +54,7 @@ export const userService = {
     apiClient.get<{ data: { user: UserProfile } }>(ENDPOINTS.USER_PROFILE)
       .then((res) => res.data.data.user),
 
-  updateProfile: (data: Partial<UserProfile>) =>
+  updateProfile: (data: UpdateProfileInput) =>
     apiClient.patch<{ data: { user: UserProfile } }>(ENDPOINTS.USER_PROFILE, data)
       .then((res) => res.data.data.user),
 

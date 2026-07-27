@@ -9,7 +9,6 @@ import { useTheme } from "@/lib/theme";
 import { primaryNav, moreGroups } from "@/lib/nav-config";
 import { Avatar } from "@/components/ui/primitives";
 import { cn, colorFromString } from "@/lib/utils";
-import { OwnershipScopeIndicator } from "./ownership/OwnershipScopeIndicator";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -77,9 +76,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:pb-10">{children}</main>
       </div>
-
-      <OwnershipScopeIndicator />
-
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex max-w-lg items-center justify-around px-2 py-2">
