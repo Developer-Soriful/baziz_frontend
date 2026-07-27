@@ -202,21 +202,18 @@ export default function ProfilePage() {
               <>
                 <div className="divide-y divide-border text-sm">
                   {[
-                    ["Unit", myLease.unit?.unitNumber || "N/A"],
+                    ["Property", myLease.property?.propertyName || myLease.propertyName || "N/A"],
+                    ["Unit", myLease.unit?.unitNumber || myLease.unitNumber || "N/A"],
                     [
                       "Lease Start",
-                      new Date(myLease.lease?.startDate).toLocaleDateString(
-                        "en-GB",
-                      ),
+                      myLease.leaseStartDate ? new Date(myLease.leaseStartDate).toLocaleDateString("en-GB") : "N/A",
                     ],
                     [
                       "Lease End",
-                      new Date(myLease.lease?.endDate).toLocaleDateString(
-                        "en-GB",
-                      ),
+                      myLease.leaseEndDate ? new Date(myLease.leaseEndDate).toLocaleDateString("en-GB") : "N/A",
                     ],
-                    ["Monthly Rent", gbp(myLease.lease?.rentAmount)],
-                    ["Security Deposit", gbp(myLease.lease?.depositAmount)],
+                    ["Monthly Rent", gbp(myLease.rentAmount || 0)],
+                    ["Security Deposit", gbp(myLease.securityDeposit || 0)],
                   ].map(([k, v]) => (
                     <div key={k} className="flex justify-between py-2.5">
                       <span className="text-text-muted">{k}</span>
@@ -230,7 +227,7 @@ export default function ProfilePage() {
                   </p>
                   <p className="mt-1 text-text-muted">
                     Your lease is currently{" "}
-                    <span className="font-bold">{myLease.lease?.status}</span>.
+                    <span className="font-bold capitalize">{myLease.status?.replace(/_/g, ' ') || 'Unknown'}</span>.
                   </p>
                 </div>
               </>
